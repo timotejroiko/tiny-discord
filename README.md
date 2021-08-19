@@ -17,6 +17,7 @@ Tests and contributions are welcome.
 - [ ] Internal Sharder
 - [ ] External Sharder?
 - [ ] Ratelimit Manager?
+- [ ] Docs
 
 Not everyting in this list is guaranteed to be done. items in questionmarks are ideas and possibilities but not a priority and not necessarily something that will be part of this project.
 

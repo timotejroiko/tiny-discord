@@ -26,7 +26,7 @@ class RestClient {
 				headers: {
 					"Content-Type": "application/json",
 					"Authorization": `${this.type} ${this.token}`,
-					"User-Agent": `DiscordBot (https://github.com/timotejroiko/tinydiscord, ${require("./package.json").version}) Node.js/${process.version}`
+					"User-Agent": `DiscordBot (https://github.com/timotejroiko/tiny-discord, ${require("./package.json").version}) Node.js/${process.version}`
 				}
 			});
 			let aborted = false;
@@ -102,8 +102,8 @@ class RestClient {
 					const writer = async () => {
 						req.setHeader("Content-Type", `multipart/form-data; boundary=${boundary}`);
 						for(const file of files) {
-							if(!file || typeof file !== "object" || !file.name || !file.data) { throw new Error("Invalid file structure"); }
-							req.write(`\r\n--${boundary}\r\nContent-Disposition: form-data; name="${file.name}"; filename="${file.name}"\r\nContent-Type: application/octet-stream\r\n\r\n`);
+							if(!file || typeof file !== "object" || !file.name || !file.data) { throw new Error("Invalid file object"); }
+							req.write(`\r\n--${boundary}\r\nContent-Disposition: form-data; name="${file.name}"; filename="${file.name}"\r\n\r\n`);
 							if(file.data instanceof Readable) {
 								for await(const chunk of file.data) {
 									req.write(chunk);
@@ -113,7 +113,7 @@ class RestClient {
 							}
 						}
 						const json = JSON.stringify(body);
-						req.write(`\r\n--${boundary}\r\nContent-Disposition: form-data; name="payload_json"\r\nContent-Type: application/json\r\n\r\n${json}\r\n--${boundary}--`);
+						req.write(`\r\n--${boundary}\r\nContent-Disposition: form-data; name="payload_json"\r\n\r\n${json}\r\n--${boundary}--`);
 						req.end();
 					};
 					writer().catch(e => abort(e));

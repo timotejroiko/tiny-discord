@@ -16,7 +16,7 @@ class WebsocketShard extends EventEmitter {
 		this.total = Number(options.total) || this.id + 1;
 		this.large_threshold = Number(options.large_threshold) || void 0;
 		this.presence = isValidPresence(options.presence) ? options.presence : void 0;
-		this.properties = isValidProperties(options.properties) ? options.properties : { $os: process.platform, $browser: "tinydiscord", $device: "tinydiscord" };
+		this.properties = isValidProperties(options.properties) ? options.properties : { $os: process.platform, $browser: "tiny-discord", $device: "tiny-discord" };
 		this.version = Number(options.version) || 9;
 		this.encoding = typeof options.encoding === "string" && options.encoding.toLowerCase() === "etf" ? "etf" : "json";
 		this.compression = [0, 1, 2].includes(options.compression = Number(options.compression)) ? options.compression : 0;
