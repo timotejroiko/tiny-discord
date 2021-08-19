@@ -23,3 +23,7 @@ Not everyting in this list is guaranteed to be done. items in questionmarks are 
 ## Components
 
 WIP
+
+## LICENSE
+
+TDB
