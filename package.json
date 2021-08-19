@@ -1,0 +1,15 @@
+{
+  "name": "tiny-discord",
+  "version": "0.0.1",
+  "description": "Basic components for interacting with the Discord API with zero dependencies",
+  "homepage": "https://github.com/timotejroiko/tiny-discord",
+  "repository": {
+    "url": "https://github.com/timotejroiko/tiny-discord"
+  },
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "Timotej Valentin Rojko",
+  "license": "TBD"
+}
