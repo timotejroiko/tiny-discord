@@ -25,17 +25,21 @@ const features = [
 ];
 
 class DoubleMap extends Map {
-	get(id1, id2) {
-		return super.get((id1 << 64n) + id2);
+	get(id) {
+		if(!Array.isArray(id) || id.length < 2) { return; }
+		return super.get((id[0] << 64n) + id[1]);
 	}
-	set(id1, id2, val) {
-		return super.set((id1 << 64n) + id2, val);
+	set(id, val) {
+		if(!Array.isArray(id) || id.length < 2) { return this; }
+		return super.set((id[0] << 64n) + id[1], val);
 	}
-	has(id1, id2) {
-		return super.has((id1 << 64n) + id2);
+	has(id) {
+		if(!Array.isArray(id) || id.length < 2) { return false; }
+		return super.has((id[0] << 64n) + id[1]);
 	}
-	delete(id1, id2) {
-		return super.delete((id1 << 64n) + id2);
+	delete(id) {
+		if(!Array.isArray(id) || id.length < 2) { return false; }
+		return super.delete((id[0] << 64n) + id[1]);
 	}
 	keys() {
 		const iterator = super.keys();
@@ -108,23 +112,11 @@ class Cache {
 		const changes = [];
 		switch(event) {
 			case "APPLICATION_COMMAND_CREATE": case "APPLICATION_COMMAND_UPDATE": {
-				if(this.commands) {
-					this._processCache("commands", BigInt(data.id), data, changes);
-				}
+				this._processCache("commands", BigInt(data.id), data, changes);
 				break;
 			}
 			case "APPLICATION_COMMAND_DELETE": {
-				if(this.commands) {
-					const id = BigInt(data.id);
-					const existing = this.commands.get(id);
-					if(existing) {
-						changes.push({
-							cache: "commands",
-							data: existing
-						});
-						this.commands.delete(id);
-					}
-				}
+				this._deleteCache("commands", BigInt(data.id), changes);
 				break;
 			}
 			case "CHANNEL_CREATE": case "CHANNEL_UPDATE": case "THREAD_CREATE": case "THREAD_UPDATE": {
@@ -140,9 +132,9 @@ class Cache {
 					this._processCache("channels", BigInt(data.id), data, changes);
 				}
 				if(overwrites && this.overwrites) {
-					const upper = BigInt(data.id) << 64n;
+					const upper = BigInt(data.id);
 					for(const overwrite of overwrites) {
-						this._processCache("overwrites", upper + BigInt(overwrite.id), overwrite, changes);
+						this._processCache("overwrites", [upper, BigInt(overwrite.id)], overwrite, changes);
 					}
 				}
 				if(recipients && this.users) {
@@ -153,32 +145,21 @@ class Cache {
 				break;
 			}
 			case "CHANNEL_DELETE": case "THREAD_DELETE": {
-				if(this.channels) {
-					const id = BigInt(data.id);
-					const existing = this.channels.get(id);
-					if(existing) {
-						changes.push({
-							cache: "channels",
-							data: existing
-						});
-						this.channels.delete(id);
-					}
-				}
+				this._deleteCache("channels", BigInt(data.id), changes);
 				const overwrites = data.permission_overwrites;
-				if(overwrites && this.overwrites) {
-					const upper = BigInt(data.id) << 64n;
+				if(overwrites && overwrites.length) {
+					const upper = BigInt(data.id);
 					for(const overwrite of overwrites) {
-						const xid = upper + BigInt(overwrite.id);
-						const existing = this.overwrites.get(xid);
-						if(existing) {
-							changes.push({
-								cache: "overwrites",
-								data: existing
-							});
-							this.overwrites.delete(xid);
-						}
+						const xid = [upper, BigInt(overwrite.id)];
+						this._deleteCache("channels", xid, changes);
 					}
 				}
+				break;
+			}
+			case "THREAD_LIST_SYNC": {
+				break;
+			}
+			case "THREAD_MEMBER_UPDATE": case "THREAD_MEMBERS_UPDATE": {
 				break;
 			}
 			case "CHANNEL_PINS_UPDATE": {
@@ -187,9 +168,50 @@ class Cache {
 				}
 				break;
 			}
+			case "GUILD_CREATE": case "GUILD_UPDATE": {
+				break;
+			}
+			case "GUILD_DELETE": {
+				break;
+			}
 		}
 		return changes;
 	}
+	_deleteCache(store, id, changes) {
+		const cache = this[store];
+		if(cache) {
+			const existing = cache.get(id);
+			if(existing) {
+				changes.push({
+					cache: store,
+					data: existing
+				});
+				cache.delete(id);
+			}
+		}
+	}
+	_processCache(store, id, data, changes) {
+		const cache = this[store];
+		if(cache) {
+			const structure = this._structure[store];
+			if(typeof structure._filter === "function" && !structure._filter(data)) { return; }
+			let existing = cache.get(id);
+			if(!existing) {
+				existing = {};
+				cache.set(id, existing);
+				if(structure._limit && cache.size >= structure._limit) {
+					const first = cache.entries().next();
+					cache.delete(first[0]);
+				}
+			}
+			for(const key of Object.keys(data))) {
+
+			}
+		}
+	}
+
+
+/*
 	_processCache(store, id, data, changes) {
 		const cache = this[store];
 		const structure = this._structure[store];
@@ -272,6 +294,7 @@ class Cache {
 			});
 		}
 	}
+	*/
 }
 
 module.exports = Cache;

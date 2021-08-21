@@ -24,7 +24,7 @@ class InteractionServer extends EventEmitter {
 		this.serverOptions = this.customServer ? null : options.server || {};
 		if(this.customServer) {
 			this._server = options.server;
-		} else if(this.serverOptions.ssl) {
+		} else if(this.serverOptions.cert && this.serverOptions.key) {
 			this._server = createSecureServer(this.serverOptions);
 		} else {
 			this._server = createServer(this.serverOptions);
