@@ -1,12 +1,6 @@
 declare module "tiny-discord" {
 	import EventEmitter from "events"
-	type ServerOptions = import("net").Server | import("http2").SecureServerOptions | import("http").ServerOptions
-	export interface GatewayEvent {
-		op: number,
-		d: object,
-		s: number,
-		t: string
-	}
+	
 	export interface Interaction {
 		id: string
 		type: number
@@ -19,28 +13,50 @@ declare module "tiny-discord" {
 		version: number
 		message?: object
 	}
+	export interface InteractionServerOptions {
+		key: string,
+		server?: import("net").Server | import("http2").SecureServerOptions | import("http").ServerOptions
+	}
 	export class InteractionServer extends EventEmitter {
-		constructor(options: {
-			key: string,
-			server?: ServerOptions
-		})
+		constructor(options: InteractionServerOptions)
 		on(event: "interaction", callback: (data: Interaction) => void): this
 		on(event: "error", callback: (error: Error) => void): this
 		listen(port: number): Promise<void>
 		close(): Promise<void>
 	}
+
+	export interface GatewayEvent {
+		op: number,
+		d: object,
+		s: number,
+		t: string
+	}
 	export class WebsocketShard extends EventEmitter {
 		constructor()
 		on(event: "event", data: (data: GatewayEvent) => void): this
 	}
+
+	export interface RestClientOptions {
+		token: string,
+		version?: number,
+		type?: "bearer" | "bot",
+		retries?: number,
+		timeout?: number
+	}
+	export interface RestRequestOptions {
+		path: string
+		method: string
+		body?: object
+		maxRetries?: number
+		timeout?: number
+	}
+	export interface RestResponse {
+		status: number
+		headers: object
+		body: object
+	}
 	export class RestClient {
-		constructor(options: {
-			token: string,
-			version?: number,
-			type?: "bearer" | "bot",
-			retries?: number,
-			timeout?: number
-		})
-		request(options: { path: string, method: string, body?: object, maxRetries?: number, timeout?: number }): Promise<{ status: number, headers: object, body: object	}>
+		constructor(options: RestClientOptions)
+		request(options: RestRequestOptions): Promise<RestResponse>
 	}
 }
