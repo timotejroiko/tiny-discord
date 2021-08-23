@@ -96,7 +96,8 @@ declare module "tiny-discord" {
 		path: string
 		method: string
 		body?: object
-		maxRetries?: number
+		headers?: object
+		retries?: number
 		timeout?: number
 	}
 	export interface RestResponse {

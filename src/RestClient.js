@@ -14,7 +14,7 @@ class RestClient {
 		this.timeout = Number(options.timeout) || 10000;
 		this._agent = new Agent({ keepAlive: true });
 	}
-	request({ path, method, body, maxRetries = this.retries, timeout = this.timeout, _retries = 0 }) {
+	request({ path, method, headers, body, retries = this.retries, timeout = this.timeout, _retries = 0 }) {
 		let abort;
 		const promise = new Promise((resolve, reject) => {
 			const req = request({
@@ -48,8 +48,8 @@ class RestClient {
 			timer = setTimeout(() => abort(new Error("Request timed out")), timeout);
 			req.once("error", err => {
 				if(aborted) { return; }
-				if(req.reusedSocket && err.code === "ECONNRESET" && _retries < maxRetries) {
-					done(this._request({ path, method, body, maxRetries, timeout, _retries: _retries + 1 }));
+				if(req.reusedSocket && err.code === "ECONNRESET" && _retries < retries) {
+					done(this._request({ path, method, body, retries, timeout, _retries: _retries + 1 }));
 				} else {
 					abort(err);
 				}
@@ -92,6 +92,11 @@ class RestClient {
 					}
 				});
 			});
+			if(headers && typeof headers === "object") {
+				for(const entry of Object.entries(headers)) {
+					req.setHeader(entry[0], entry[1]);
+				}
+			}
 			if(body) {
 				let files = body.file || body.files;
 				if(files) {
@@ -112,8 +117,15 @@ class RestClient {
 								req.write(file.data);
 							}
 						}
-						const json = JSON.stringify(body);
-						req.write(`\r\n--${boundary}\r\nContent-Disposition: form-data; name="payload_json"\r\n\r\n${json}\r\n--${boundary}--`);
+						if(body.payload_json) {
+							const json = JSON.stringify(body.payload_json);
+							req.write(`\r\n--${boundary}\r\nContent-Disposition: form-data; name="payload_json"\r\n\r\n${json}`);
+						} else {
+							for(const entry of Object.entries(body)) {
+								req.write(`\r\n--${boundary}\r\nContent-Disposition: form-data; name="${entry[0]}"\r\n\r\n${entry[1].toString()}`);
+							}
+						}
+						req.write(`\r\n--${boundary}--`);
 						req.end();
 					};
 					writer().catch(e => abort(e));
