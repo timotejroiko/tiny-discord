@@ -96,8 +96,8 @@ class Cache {
 		if(structure.channels) { this.channels = new Map(); }
 		if(structure.users) { this.users = new Map(); }
 		if(structure.members) { this.members = new DoubleMap(); }
-		if(structure.roles) { this.roles = new Map(); }
 		if(structure.overwrites) { this.overwrites = new DoubleMap(); }
+		if(structure.roles) { this.roles = new Map(); }
 		if(structure.emojis) { this.emojis = new Map(); }
 		if(structure.stickers) { this.stickers = new Map(); }
 		if(structure.commands) { this.commands = new Map(); }
@@ -120,23 +120,17 @@ class Cache {
 				break;
 			}
 			case "CHANNEL_CREATE": case "CHANNEL_UPDATE": case "THREAD_CREATE": case "THREAD_UPDATE": {
-				const overwrites = data.permission_overwrites;
-				const recipients = data.recipients;
 				if(this.channels) {
-					if(overwrites) {
-						data.permission_overwrites = overwrites.map(x => BigInt(x.id));
-					}
-					if(recipients) {
-						data.recipients = recipients.map(x => BigInt(x.id));
-					}
 					this._processCache("channels", BigInt(data.id), data, changes);
 				}
+				const overwrites = data.permission_overwrites;
 				if(overwrites && this.overwrites) {
 					const upper = BigInt(data.id);
 					for(const overwrite of overwrites) {
 						this._processCache("overwrites", [upper, BigInt(overwrite.id)], overwrite, changes);
 					}
 				}
+				const recipients = data.recipients;
 				if(recipients && this.users) {
 					for(const user of recipients) {
 						this._processCache("users", BigInt(user.id), user, changes);
@@ -157,6 +151,24 @@ class Cache {
 				break;
 			}
 			case "THREAD_LIST_SYNC": {
+				if(this.guilds) {
+					this._processCache("guilds", BigInt(data.guild_id), { threads: data.threads }, changes);
+				}
+				if(this.channels) {
+					const id = BigInt(data.guild_id);
+					for(let i = 0; i < data.threads.length; i++) {
+						const thread = data.threads[i];
+						let member = data.members[i];
+						if(member.id !== thread.id) {
+							member = data.members.find(m => m.id === thread.id);
+						}
+						thread.member = {
+							join_timestamp: member.join_timestamp,
+							flags: member.flags
+						};
+						this._processCache("channels", [id, thread.id], thread, changes);
+					}
+				}
 				break;
 			}
 			case "THREAD_MEMBER_UPDATE": case "THREAD_MEMBERS_UPDATE": {
@@ -184,6 +196,7 @@ class Cache {
 			if(existing) {
 				changes.push({
 					cache: store,
+					deleted: true,
 					data: existing
 				});
 				cache.delete(id);
@@ -204,8 +217,85 @@ class Cache {
 					cache.delete(first[0]);
 				}
 			}
-			for(const key of Object.keys(data))) {
+			let changelog;
+			for(const key of Object.keys(data)) {
+				if(structure === true || structure[key]) {
+					const prev = existing[key];
+					let value = data[key];
+					let serial = false;
+					if(typeof structure[key] === "function") {
+						value = structure[key](value);
+						if(typeof value === "undefined") {
+							continue;
+						} else if(value && typeof value === "object") {
+							serial = true;
+						}
+					} else if(typeof value === "string") {
+						if(key.includes("id") && !isNaN(value)) {
+							value = BigInt(value);
+						} else if(["permissions", "allow", "deny"].includes(key) && !isNaN(value)) {
+							value = Number(value);
+						} else if(["icon", "splash", "avatar"].some(x => key.includes(x)) && !isNaN(`0x${value}`)) {
+							value = BigInt(`0x${value}`);
+						} else if(["timestamp", "_at"].some(x => key.includes(x)) && Date.parse(value)) {
+							value = Date.parse(value);
+						}
+					} else if(Array.isArray(value) && value.length) {
+						if(typeof value[0] === "string") {
+							if(key === "features") {
+								value = value.reduce((a, t) => a + (1 << this.FEATURES.indexOf(t)), 0);
+							} else if(value[0].length > 15 && !isNaN(value[0])) {
+								value = value.map(v => BigInt(v));
+								serial = true;
+							}
+						} else if(value[0] && typeof value[0] === "object") {
+							if(key === "permission_overwrites") {
+								value = value.map(x => BigInt(x.id));
+								serial = true;
+							} else if(key === "recipients") {
+								if(value.length === 1) {
+									value = BigInt(value[0]);
+								} else {
+									value = value.map(x => BigInt(x.id));
+									serial = true;
+								}
+							}
+						}
+					} else if(value && typeof value === "object") {
+						
+					}
+					if(typeof prev !== "undefined" && (serial ? JSON.stringify(prev) !== JSON.stringify(value) : prev !== value)) {
+						if(!changelog) { changelog = {}; }
+						changelog[key] = prev;
+					}
+					existing[key] = value;
+				}
+			}
+			if(changelog) {
+				changes.push({
+					cache: store,
+					deleted: false,
+					data: changelog
+				});
+			}
+		}
+	}
+	_crossCheck(store, existing, incoming, changes) {
+		const cache = this[store];
+		if(cache) {
 
+		}
+		if(prev && prev.length && this.overwrites) {
+			const deleted = prev.filter(x => !value.find(y => x === y));
+			for(const oid of deleted) {
+				const overwrite = this.overwrites.get([id, oid]);
+				if(overwrite) {
+					changes.push({
+						cache: "overwrites",
+						data: overwrite
+					});
+					this.overwrites.delete([id, oid]);
+				}
 			}
 		}
 	}

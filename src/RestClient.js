@@ -126,7 +126,7 @@ class RestClient {
 				req.end();
 			}
 		});
-		promise.abort = reason => abort(new Error(`Aborted by user: ${reason || ""}`));
+		promise.abort = reason => abort(new Error(`Aborted by user: ${reason || "no reason provided"}`));
 		return promise;
 	}
 }

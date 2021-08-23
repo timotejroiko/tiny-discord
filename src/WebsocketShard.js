@@ -108,7 +108,7 @@ class WebsocketShard extends EventEmitter {
 		let resolver;
 		const promise = new Promise(resolve => {
 			resolver = resolve;
-			this._write(data ? JSON.stringify(data) : Buffer.allocUnsafe(0), 9);
+			this._write(data ? Buffer.from(JSON.stringify(data)) : Buffer.allocUnsafe(0), 9);
 		}).then(() => {
 			internal.pingPromise = null;
 			return internal.lastPing = Date.now() - time;
@@ -396,7 +396,7 @@ function isValidPresence(obj) {
 	if(!obj || typeof obj !== "object" || typeof obj.since === "undefined" || typeof obj.afk !== "boolean" || typeof obj.status !== "string") { return false; }
 	if(!["online", "dnd", "idle", "invisible", "offline"].includes(obj.status = obj.status.toLowerCase())) { return false; }
 	if(!Array.isArray(obj.activities)) { return false; }
-	if(!obj.activities.every(x => typeof x.name === "string" && [0, 1, 2, 3, 4, 5].includes(x.type))) { return false; }
+	if(obj.activities.length && !obj.activities.every(x => typeof x.name === "string" && Number.isInteger(x.created_at) && [0, 1, 2, 3, 4, 5].includes(x.type))) { return false; }
 	return true;
 }
 

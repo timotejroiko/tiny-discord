@@ -13,7 +13,7 @@ Tests and contributions are welcome.
 - [x] Shard Websocket
 - [ ] Voice Websocket?
 - [ ] Basic Caching (wip)
-- [ ] Basic types
+- [x] Basic types
 - [ ] Internal Sharder
 - [ ] External Sharder?
 - [ ] Ratelimit Manager?
