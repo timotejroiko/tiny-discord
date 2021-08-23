@@ -26,7 +26,7 @@ Not everyting in this list is guaranteed to be done. items in questionmarks are 
 
 These components are fully stand alone files with no external dependencies
 
-### RestClient
+### Class RestClient
 
 A simple client for interacting with the discord rest API built on `https`.
 
@@ -101,9 +101,7 @@ rest.request({
 });
 ```
 
-#### Class RestClient
-
-##### contructor(options)
+#### constructor(options)
 
 - **options**: object - client options
   - token: string - your bot or bearer token
@@ -112,7 +110,7 @@ rest.request({
   - retries?: number - max number of retries on network errors. default = 3
   - timeout?: number - time to wait for response before aborting, in ms. default = 10000
 
-##### request(options) => Promise\<response\>
+#### request(options) => Promise\<response\>
 
 - **options**: object - request options
   - path: string - api endpoint
@@ -131,8 +129,7 @@ rest.request({
 - **file**: object - a single file to upload
   - name: string - the file name, including the file extension
   - data: buffer | stream - the file data in a buffer or as readable stream
-
-- **files**: array\<file\> - array of file objects to upload
+- **files**: array\<file\> - array of file objects as above
 
 ### WebsocketShard
 
