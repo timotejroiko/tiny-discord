@@ -110,12 +110,12 @@ rest.request({
   - retries?: number - max number of retries on network errors. default = 3
   - timeout?: number - time to wait for response before aborting, in ms. default = 10000
 
-#### request(options) => Promise\<response\>
+#### request(options) => AbortablePromise\<response\> \*
 
 - **options**: object - request options
   - path: string - api endpoint
   - method: string - api method
-  - body?: object - data to send, if any *
+  - body?: object - data to send, if any \*\*
   - headers?: object - extra headers to send, if any
   - retries?: number - override default max retries for this request
   - timeout?: number - override default timeout for this request
@@ -124,7 +124,12 @@ rest.request({
   - headers: object - response headers
   - body: object | string - response body, accoding to received content-type header
 
-\* If a `file` or `files` field exists on the `body` object, the request will be converted to multipart/form-data. Unlike most other fields, these fields are not fully defined in the Discord API documentation as they are implementation-specific. RestClient implements them as follows:
+\* AbortablePromise is a regular Promise with an additional `.abort()` method, if one wishes to interrupt an ongoing request. The abort method is defined as follows:
+
+- **promise.abort(reason)**
+  - **reason**: string - the reason for aborting. The ongoing request will be rejected with this reason
+
+\** If a `file` or `files` field exists on the `body` object, the request will be converted to multipart/form-data. Unlike most other fields, these fields are not fully defined in the Discord API documentation as they are implementation-specific. RestClient implements them as follows:
 
 - **file**: object - a single file to upload
   - name: string - the file name, including the file extension
