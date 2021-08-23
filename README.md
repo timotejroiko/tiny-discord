@@ -36,7 +36,29 @@ Rate limits are not accounted for, instead they are returned to the user through
 
 Non-200 status codes are returned normally along with headers and body if available, only network errors are thrown.
 
-#### Example
+#### Examples
+
+Sending a simple message:
+
+```js
+const { RestClient } = require("tiny-discord");
+
+const rest = new RestClient({
+  token: "uvuvwevwevwe.onyetenyevwe.ugwemubwem.ossas",
+});
+
+rest.request({
+  path: `/channels/999999999999999999/messages`,
+  method: "POST",
+  body: {
+    content: "hello world"
+  }
+}).then(result => {
+    console.log(result.status, result.headers, result.body);
+});
+```
+
+Sending a message with multiple embeds and images:
 
 ```js
 const { RestClient } = require("tiny-discord");
@@ -76,7 +98,7 @@ rest.request({
   }
 }).then(result => {
     console.log(result.status, result.headers, result.body);
-})
+});
 ```
 
 #### Class RestClient
@@ -95,7 +117,7 @@ rest.request({
 - **options**: object - request options
   - path: string - api endpoint
   - method: string - api method
-  - body?: object - data to send, if any
+  - body?: object - data to send, if any *
   - headers?: object - extra headers to send, if any
   - retries?: number - override default max retries for this request
   - timeout?: number - override default timeout for this request
@@ -103,6 +125,14 @@ rest.request({
   - status: number - response status code
   - headers: object - response headers
   - body: object | string - response body, accoding to received content-type header
+
+\* If a `file` or `files` field exists on the `body` object, the request will be converted to multipart/form-data. Unlike most other fields, these fields are not fully defined in the Discord API documentation as they are implementation-specific. RestClient implements them as follows:
+
+- **file**: object - a single file to upload
+  - name: string - the file name, including the file extension
+  - data: buffer | stream - the file data in a buffer or as readable stream
+
+- **files**: array\<file\> - array of file objects to upload
 
 ### WebsocketShard
 
