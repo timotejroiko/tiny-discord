@@ -334,6 +334,8 @@ class WebsocketShard extends EventEmitter {
 			}
 			case 9: {
 				this.emit("debug", "Received invalid session");
+				this.session = null;
+				this.sequence = 0;
 				internal.replayCount = null;
 				internal.lastError = new Error("Invalid session");
 				this._write(Buffer.allocUnsafe(0), 8);
