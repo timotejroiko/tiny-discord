@@ -10,7 +10,9 @@ Non-200 status codes are returned normally along with headers and body when avai
 
 &nbsp;
 
-## Api
+## Class
+
+RestClient.
 
 ### constructor
 
@@ -24,7 +26,9 @@ const client = new RestClient(options)
 
 &nbsp;
 
-### .request(options)
+## Methods
+
+### .request()
 
 ```js
 await client.request(options)
