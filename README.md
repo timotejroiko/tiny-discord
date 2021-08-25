@@ -190,7 +190,7 @@ shard.connect().then(() => console.log("connected")).catch(console.error);
   - version?: number - gateway api version. default = 9
   - encoding?: "json" | "etf" - encoding. default = "json" \*
   - compression?: 0 | 1 | 2 - compression. 0 = none, 1 = packet, 2 = transport. defult = 0 \*\*
-  - url?: string - gateway url as given by /gateway/bot. default = "gateway.discord.gg"
+  - url?: string - gateway url as given by /gateway/bot (without protocol). default = "gateway.discord.gg"
   - session?: string - existing session id to resume \*\*\*
   - sequence?: number - existing session sequence to resume \*\*\*
 
