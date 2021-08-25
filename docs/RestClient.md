@@ -8,6 +8,8 @@ Rate limits are not accounted for, the response headers are returned to the user
 
 Non-200 status codes are returned normally along with headers and body when available, only internal/network errors are thrown.
 
+&nbsp;
+
 ## Api
 
 ### constructor
@@ -18,7 +20,9 @@ const client = new RestClient(options)
 
 |parameter|type|required|default|description|
 |-|-|-|-|-|
-|options|[RestClientOptions](RestClientOptions)|yes|-|RestClient options|
+|options|[RestClientOptions](#RestClientOptions)|yes|-|RestClient options|
+
+&nbsp;
 
 ### .request(options)
 
@@ -28,9 +32,11 @@ await client.request(options)
 
 |parameter|type|required|default|description|
 |-|-|-|-|-|
-|options|[RequestOptions](RequestOptions)|yes|-|Options for this request|
+|options|[RequestOptions](#RequestOptions)|yes|-|Options for this request|
 
-**Returns:** [AbortablePromise](AbortablePromise)\<[ApiResponse](ApiResponse)\>
+**Returns:** [AbortablePromise](#AbortablePromise)\<[ApiResponse](#ApiResponse)\>
+
+&nbsp;
 
 ## Types
 
@@ -44,6 +50,8 @@ await client.request(options)
 |retries|number|no|3|Max retries on network errors|
 |timeout|number|no|10000|Time to wait before aborting|
 
+&nbsp;
+
 ### RequestOptions
 
 |parameter|type|required|default|description|
@@ -52,8 +60,8 @@ await client.request(options)
 |method|string|yes|-|Api method|
 |body|object|no|-|Data to send, if any \*|
 |headers|object|no|-|Extra headers to send, if any|
-|retries|number|no|ClientOptions.retries|override default max retries for this request|
-|timeout|number|no|ClientOptions.timeout|override default timeout for this request|
+|retries|number|no|RestClientOptions.retries|override default max retries for this request|
+|timeout|number|no|RestClientOptions.timeout|override default timeout for this request|
 
 \* If a `file` or `files` field exists on the `body` object, the request will be converted to multipart/form-data. Unlike most other fields, these fields are not fully defined in the Discord API documentation, its up to the library to implement them. RestClient implements them as follows:
 
@@ -64,6 +72,8 @@ await client.request(options)
 |file.data|buffer \| stream|yes|-|The file data|
 |files|array\<file\>|no|-|Array of files to send|
 
+&nbsp;
+
 ### ApiResponse
 
 |field|type|description|
@@ -71,6 +81,8 @@ await client.request(options)
 |status|number|Response status code|
 |headers|object|Response headers|
 |body|object \| string|Response body according to content-type header|
+
+&nbsp;
 
 ### AbortablePromise
 
@@ -85,6 +97,8 @@ Abort the request. The ongoing request will be rejected with the given reason.
 |reason|string|no|-|Reason for aborting|
 
 **returns:** void
+
+&nbsp;
 
 ## Examples
 
