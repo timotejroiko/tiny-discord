@@ -10,9 +10,9 @@ Non-200 status codes are returned normally along with headers and body when avai
 
 &nbsp;
 
-## Class
+## Class RestClient
 
-RestClient.
+&nbsp;
 
 ### constructor
 
@@ -27,6 +27,8 @@ const client = new RestClient(options)
 &nbsp;
 
 ## Methods
+
+&nbsp;
 
 ### .request()
 
@@ -43,6 +45,8 @@ await client.request(options)
 &nbsp;
 
 ## Types
+
+&nbsp;
 
 ### RestClientOptions
 
@@ -106,6 +110,8 @@ Abort the request. The ongoing request will be rejected with the given reason.
 
 ## Examples
 
+&nbsp;
+
 Sending a simple message:
 
 ```js
@@ -125,6 +131,8 @@ rest.request({
     console.log(result.status, result.headers, result.body);
 }).catch(console.error);
 ```
+
+&nbsp;
 
 Sending a message with multiple embeds and images:
 

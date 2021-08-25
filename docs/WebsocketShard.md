@@ -10,9 +10,9 @@ Shard-specific rate limits are accounted for and requests will be rejected befor
 
 &nbsp;
 
-## Class
+## Class WebsocketShard extends EventEmitter
 
-WebsocketShard extends EventEmitter.
+&nbsp;
 
 ### constructor
 
@@ -28,7 +28,7 @@ const shard = new WebsocketShard(options)
 
 ## Events
 
-WebsocketShard events.
+&nbsp;
 
 ### ready
 
@@ -82,19 +82,27 @@ Internal debugging information.
 
 ## Properties
 
+&nbsp;
+
 ### status
 
 The shard's current connection status.
+
 **type:** [ShardStatus](#ShardStatus)
+
+&nbsp;
 
 ### lastPing
 
 The shard's latency from the last time it was measured. Measurements are made automatically on every heartbeat or manually with the `.ping()` method.
+
 **type:** number
 
 &nbsp;
 
 ## Methods
+
+&nbsp;
 
 ### .connect()
 
@@ -151,6 +159,8 @@ await shard.send(data)
 &nbsp;
 
 ## Types
+
+&nbsp;
 
 ### ShardOptions
 
@@ -258,6 +268,8 @@ If resuming is unsuccessful, the shard is closed with an Invalid Session error a
 &nbsp;
 
 ## Examples
+
+&nbsp;
 
 Basic usage:
 
