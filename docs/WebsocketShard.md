@@ -16,13 +16,16 @@ Shard-specific rate limits are accounted for and requests will be rejected befor
 
 ### constructor
 
-```js
-const shard = new WebsocketShard(options)
-```
-
 |parameter|type|required|default|description|
 |-|-|-|-|-|
 |options|[ShardOptions](#ShardOptions)|yes|-|Shard options|
+
+```js
+const shard = new WebsocketShard({
+  token: "xyz",
+  intents: 1
+})
+```
 
 &nbsp;
 
@@ -106,11 +109,13 @@ The shard's latency from the last time it was measured. Measurements are made au
 
 ### .connect()
 
+Connect to the gateway. If session id and sequence are defined in the shard options, a resume will be attempted, otherwise a new identify will be made.
+
+**returns:** Promise\<void\>
+
 ```js
 await shard.connect()
 ```
-
-**returns:** Promise\<void\>
 
 &nbsp;
 
@@ -118,15 +123,15 @@ await shard.connect()
 
 Make a new latency measurement.
 
-```js
-await shard.ping(data)
-```
-
 |parameter|type|required|default|description|
 |-|-|-|-|-|
 |data|any|no|-|Optional data to test the latency of specific payloads|
 
 **returns:** Promise\<number\>
+
+```js
+await shard.ping("some data")
+```
 
 &nbsp;
 
@@ -134,11 +139,11 @@ await shard.ping(data)
 
 Disconnect the shard. The close event will not be fired on manual closure.
 
+**returns:** Promise\<void\>
+
 ```js
 await shard.close()
 ```
-
-**returns:** Promise\<void\>
 
 &nbsp;
 
@@ -146,15 +151,22 @@ await shard.close()
 
 Send a gateway command.
 
-```js
-await shard.send(data)
-```
-
 |parameter|type|required|default|description|
 |-|-|-|-|-|
 |data|[GatewayCommand](#GatewayCommand)|yes|-|Gateway command payload|
 
 **returns:** Promise\<void\>
+
+```js
+await shard.send({
+  op: 8,
+  d: {
+    guild_id: "41771983444115456",
+    query: "",
+    limit: 0
+  }
+})
+```
 
 &nbsp;
 

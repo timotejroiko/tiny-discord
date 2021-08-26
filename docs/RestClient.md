@@ -16,13 +16,13 @@ Non-200 status codes are returned normally along with headers and body when avai
 
 ### constructor
 
-```js
-const client = new RestClient(options)
-```
-
 |parameter|type|required|default|description|
 |-|-|-|-|-|
 |options|[RestClientOptions](#RestClientOptions)|yes|-|RestClient options|
+
+```js
+const client = new RestClient({ token: "abc" })
+```
 
 &nbsp;
 
@@ -30,17 +30,23 @@ const client = new RestClient(options)
 
 &nbsp;
 
-### .request()
+### .request(data)
 
-```js
-await client.request(options)
-```
+Make a request to the Discord API.
 
 |parameter|type|required|default|description|
 |-|-|-|-|-|
-|options|[RequestOptions](#RequestOptions)|yes|-|Options for this request|
+|data|[RequestOptions](#RequestOptions)|yes|-|Options for this request|
 
 **Returns:** [AbortablePromise](#AbortablePromise)\<[ApiResponse](#ApiResponse)\>
+
+```js
+await client.request({
+  path: "/channels/9999/messages",
+  method: "POST",
+  body: { content: "hi" }
+})
+```
 
 &nbsp;
 
