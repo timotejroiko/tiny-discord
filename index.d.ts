@@ -19,6 +19,7 @@ declare module "tiny-discord" {
 	}
 	export interface InteractionServerOptions {
 		key: string
+		path?: string
 		server?: import("net").Server | import("http2").SecureServerOptions | import("http").ServerOptions
 	}
 	export class InteractionServer extends EventEmitter {

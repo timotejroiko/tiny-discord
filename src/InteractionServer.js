@@ -22,6 +22,7 @@ class InteractionServer extends EventEmitter {
 		}
 		this.customServer = options.server instanceof Server;
 		this.serverOptions = this.customServer ? null : options.server || {};
+		this.path = typeof options.path === "string" ? options.path : "/";
 		if(this.customServer) {
 			this._server = options.server;
 		} else if(this.serverOptions.cert && this.serverOptions.key) {
@@ -80,6 +81,7 @@ class InteractionServer extends EventEmitter {
 		this.emit("error", e);
 	}
 	_onRequest(req, res) {
+		if(!req.url.startsWith(this.path)) { return; }
 		const signature = req.headers["x-signature-ed25519"];
 		const timestamp = req.headers["x-signature-timestamp"];
 		if(!signature || !timestamp) {
