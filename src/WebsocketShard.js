@@ -7,9 +7,10 @@ const { createInflate, inflateSync, constants: { Z_SYNC_FLUSH } } = require("zli
 
 class WebsocketShard extends EventEmitter {
 	constructor(options) {
-		super();
+		if(!options || typeof options !== "object") { throw new Error("Invalid options"); }
 		if(typeof options.token !== "string") { throw new Error("Invalid token"); }
 		if(!Number.isInteger(options.intents)) { throw new Error("Invalid intents"); }
+		super();
 		this.token = options.token;
 		this.intents = options.intents;
 		this.id = Number(options.id) || 0;
@@ -38,7 +39,8 @@ class WebsocketShard extends EventEmitter {
 			closePromise: null,
 			pingPromise: null,
 			reconnectPromise: null,
-			zlib: null
+			zlib: null,
+			memberChunks: {}
 		};
 	}
 	get lastPing() {
@@ -147,6 +149,49 @@ class WebsocketShard extends EventEmitter {
 			this._write(etf, 2);
 		}
 		return Promise.resolve();
+	}
+	requestGuildMembers(options) {
+		if(!options || typeof options !== "object") { throw new Error("Invalid options"); }
+		if(typeof options.guild_id !== "string") { throw new Error("Invalid guild_id"); }
+		const chunks = this._internal.memberChunks;
+		const hasUsers = Array.isArray(options.user_ids);
+		const n = ((Date.now() % 86400000 + Math.random()) * 100000000).toString(36);
+		const timeout = Number.isInteger(options.timeout) ? options.timeout : 10000;
+		this.send({
+			op: 8,
+			d: {
+				guild_id: options.guild_id,
+				query: hasUsers ? void 0 : options.query || "",
+				limit: Number.isInteger(options.limit) ? options.limit : 50,
+				presences: Boolean(options.presences),
+				user_ids: hasUsers ? options.user_ids : void 0,
+				nonce: n
+			}
+		});
+		return new Promise((resolve, reject) => {
+			const timer = setTimeout(() => {
+				delete chunks[n];
+				reject(new Error("Request timed out"));
+			}, timeout);
+			const resolver = () => {
+				clearTimeout(timer);
+				const data = chunks[n];
+				delete chunks[n];
+				resolve({
+					guild_id: options.guild_id,
+					members: data.members,
+					presences: data.presences,
+					not_found: data.not_found
+				});
+			};
+			chunks[n] = {
+				resolve: resolver,
+				received: 0,
+				members: [],
+				presences: [],
+				not_found: []
+			};
+		});
 	}
 	_write(packet, opcode) {
 		const socket = this._socket;
@@ -302,18 +347,29 @@ class WebsocketShard extends EventEmitter {
 		}
 		switch(data.op) {
 			case 0: {
-				if(data.t === "READY") {
-					this.session = data.d.session_id;
-					this.emit("debug", `Ready, Session = ${data.d.session_id}`);
-					this.emit("ready", data.d);
+				const t = data.t;
+				const d = data.d;
+				if(t === "READY") {
+					this.session = d.session_id;
+					this.emit("debug", `Ready, Session = ${d.session_id}`);
+					this.emit("ready", d);
 					return;
 				}
-				if(data.t === "RESUMED") {
-					data.d.replayed = internal.replayCount;
+				if(t === "RESUMED") {
+					d.replayed = internal.replayCount;
 					internal.replayCount = null;
-					this.emit("debug", `Resumed, Session = ${this.session}, replayed = ${data.d.replayed}`);
-					this.emit("resumed", data.d);
+					this.emit("debug", `Resumed, Session = ${this.session}, replayed = ${d.replayed}`);
+					this.emit("resumed", d);
 					return;
+				}
+				if(t === "GUILD_MEMBERS_CHUNK") {
+					const chunk = this._internal.memberChunks[d.nonce];
+					if(chunk) {
+						chunk.members.push(...d.members);
+						if(d.presences) { chunk.presences.push(...d.presences); }
+						if(d.not_found) { chunk.not_found.push(...d.not_found); }
+						if(++chunk.received === d.chunk_count) { chunk.resolve(); }
+					}
 				}
 				this.emit("event", data);
 				break;

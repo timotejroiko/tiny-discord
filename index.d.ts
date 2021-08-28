@@ -71,6 +71,20 @@ declare module "tiny-discord" {
 	export interface ShardResumed {
 		replayed: number
 	}
+	export interface RequestGuildMembersOptions {
+		guild_id: string
+		query?: string
+		limit?: number
+		presences?: boolean
+		user_ids?: string[]
+		timeout?: number
+	}
+	export interface GuildMembersResult {
+		guild_id: string
+		members: object[]
+		presences: object[]
+		not_found: string[]
+	}
 	export class WebsocketShard extends EventEmitter {
 		constructor(options: ShardOptions)
 		on(event: "event", callback: (data: ShardEvent) => void): this
@@ -80,6 +94,7 @@ declare module "tiny-discord" {
 		on(event: "resumed", callback: (data: ShardResumed) => void): this
 		connect(): Promise<void>
 		send(data: { op: number, d: object }): Promise<void>
+		requestGuildMembers(options: RequestGuildMembersOptions): Promise<GuildMembersResult>
 		ping(data: any): Promise<number>
 		close(): Promise<void>
 		lastPing: number

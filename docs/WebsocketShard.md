@@ -147,6 +147,26 @@ await shard.close()
 
 &nbsp;
 
+### .requestGuildMembers()
+
+Request guild members in a given guild. GUILD_MEMBERS_CHUNK events will be automatically collected, combined and returned once finished. The events themselves are still emitted individually through the `event` event.
+
+|parameter|type|required|default|description|
+|-|-|-|-|-|
+|options|[RequestGuildMembersOptions](#RequestGuildMembersOptions)|yes|-|Request guild members payload|
+
+**returns:** Promise\<[GuildMembersResult](#GuildMembersResult)\>
+
+```js
+await shard.requestGuildMembers({
+  guild_id: "41771983444115456",
+  query: "",
+  limit: 0
+})
+```
+
+&nbsp;
+
 ### .send()
 
 Send a gateway command.
@@ -276,6 +296,30 @@ If resuming is unsuccessful, the shard is closed with an Invalid Session error a
 |$os|string|yes|process.platform|Platform|
 |$browser|string|yes|"tiny-discord"|Library name|
 |$device|string|yes|"tiny-discord"|Library name|
+
+&nbsp;
+
+### RequestGuildMembersOptions
+
+|parameter|type|required|default|description|
+|-|-|-|-|-|
+|guild_id|string|yes|-|The guild ID to request members from|
+|user_ids|array\<string\>|no|-|Array of member IDs to fetch|
+|query|string|no|""|Search members by username instead|
+|limit|number|no|50|Max number of members to return|
+|presences|boolean|no|false|Whether to include presence data|
+|timeout|number|no|10000|How long to wait before canceling the request|
+
+&nbsp;
+
+### GuildMembersResult
+
+|parameter|type|description|
+|-|-|-|
+|guild_id|string|The guild ID of the returned members|
+|members|array\<object\>|Array of guild member objects|
+|presences|array\<object\>|Array of presence objects|
+|not_found|array\<string\>|Array of not found IDs|
 
 &nbsp;
 
