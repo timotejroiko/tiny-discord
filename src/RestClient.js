@@ -14,19 +14,21 @@ class RestClient {
 		this.timeout = Number(options.timeout) || 10000;
 		this._agent = new Agent({ keepAlive: true });
 	}
-	request({ path, method, headers, body, retries = this.retries, timeout = this.timeout, _retries = 0 }) {
+	request({ path, method, body, headers = {}, options = {}, retries = this.retries, timeout = this.timeout, _retries = 0 }) {
 		let abort;
 		const promise = new Promise((resolve, reject) => {
 			const req = request({
+				...options,
 				hostname: "discord.com",
 				port: 443,
 				path: `/api/v${this.version}/${path.split("/").filter(Boolean).join("/")}`,
 				method: method.toUpperCase(),
 				agent: this._agent,
 				headers: {
+					"User-Agent": `DiscordBot (https://github.com/timotejroiko/tiny-discord, ${require("./package.json").version}) Node.js/${process.version}`,
+					...headers,
 					"Content-Type": "application/json",
-					"Authorization": `${this.type} ${this.token}`,
-					"User-Agent": `DiscordBot (https://github.com/timotejroiko/tiny-discord, ${require("./package.json").version}) Node.js/${process.version}`
+					"Authorization": `${this.type} ${this.token}`
 				}
 			});
 			let aborted = false;
@@ -92,11 +94,6 @@ class RestClient {
 					}
 				});
 			});
-			if(headers && typeof headers === "object") {
-				for(const entry of Object.entries(headers)) {
-					req.setHeader(entry[0], entry[1]);
-				}
-			}
 			if(body) {
 				let files = body.file || body.files;
 				if(files) {

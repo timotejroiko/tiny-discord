@@ -102,9 +102,9 @@ await server.close()
 |-|-|-|-|-|
 |key|string|yes|-|Your application's public key|
 |path|string|no|"/"|Path on which to accept interaction webhooks|
-|server|server \| object|no|-|Server options or a custom server \* \*\*|
+|server|server \| object|no|-|Server options or a custom server \*|
 
-\* If `server` is an instance of (http/https/http2/net/tls).Server, InteractionServer will attach itself to it like a middleware. Otherwise `server` can be an options object given to one of the built-in servers. If the object includes `cert` and `key` properties, it is passed to `http2.createSecureServer`, otherwise it is passed to `http.createServer`.
+\* If `server` is an instance of http/https/http2/net/tls Server, InteractionServer will attach itself to it like a middleware. Otherwise `server` is an options object to be given to a built-in server. If the object includes `cert` and `key` properties, it is passed to `http2.createSecureServer`, otherwise it is passed to `http.createServer`.
 
 &nbsp;
 

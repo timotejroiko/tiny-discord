@@ -73,7 +73,8 @@ await client.request({
 |path|string|yes|-|Api endpoint|
 |method|string|yes|-|Api method|
 |body|object|no|-|Data to send, if any \*|
-|headers|object|no|-|Extra headers to send, if any|
+|headers|object|no|-|Additional headers to send, if any|
+|options|object|no|-|Additional `https.request` options, if any|
 |retries|number|no|RestClientOptions.retries|override default max retries for this request|
 |timeout|number|no|RestClientOptions.timeout|override default timeout for this request|
 

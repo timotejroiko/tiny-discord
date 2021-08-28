@@ -98,6 +98,7 @@ declare module "tiny-discord" {
 		method: string
 		body?: object
 		headers?: object
+		options?: import("https").RequestOptions
 		retries?: number
 		timeout?: number
 	}
