@@ -193,6 +193,24 @@ class WebsocketShard extends EventEmitter {
 			};
 		});
 	}
+	updatePresence(presence) {
+		const data = {
+			since: presence.afk ? Number(presence.since) || Date.now() : null,
+			activities: Array.isArray(presence.activities) ? presence.activities : [],
+			status: typeof presence.status === "string" ? presence.status.toLowerCase() : "online",
+			afk: Boolean(presence.afk)
+		};
+		if(data.activities.length && !data.activities.every(x => typeof x.name === "string" && [0, 1, 2, 3, 4, 5].includes(x.type))) {
+			return Promise.reject(new Error("Invalid presence name or type"));
+		}
+		if(!["online", "dnd", "idle", "invisible", "offline"].includes(data.status)) {
+			return Promise.reject(new Error("Invalid status"));
+		}
+		return this.send({
+			op: 3,
+			d: data
+		});
+	}
 	_write(packet, opcode) {
 		const socket = this._socket;
 		if(!socket || !socket.writable) { return; }
@@ -454,7 +472,7 @@ function isValidPresence(obj) {
 	if(!obj || typeof obj !== "object" || typeof obj.since === "undefined" || typeof obj.afk !== "boolean" || typeof obj.status !== "string") { return false; }
 	if(!["online", "dnd", "idle", "invisible", "offline"].includes(obj.status = obj.status.toLowerCase())) { return false; }
 	if(!Array.isArray(obj.activities)) { return false; }
-	if(obj.activities.length && !obj.activities.every(x => typeof x.name === "string" && Number.isInteger(x.created_at) && [0, 1, 2, 3, 4, 5].includes(x.type))) { return false; }
+	if(obj.activities.length && !obj.activities.every(x => typeof x.name === "string" && [0, 1, 2, 3, 4, 5].includes(x.type))) { return false; }
 	return true;
 }
 

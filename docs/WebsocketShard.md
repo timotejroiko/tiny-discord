@@ -153,7 +153,7 @@ Request guild members in a given guild. GUILD_MEMBERS_CHUNK events will be autom
 
 |parameter|type|required|default|description|
 |-|-|-|-|-|
-|options|[RequestGuildMembersOptions](#RequestGuildMembersOptions)|yes|-|Request guild members payload|
+|options|[RequestGuildMembersOptions](#RequestGuildMembersOptions)|yes|-|Request guild members payload with an additional timeout field|
 
 **returns:** Promise\<[GuildMembersResult](#GuildMembersResult)\>
 
@@ -162,6 +162,28 @@ await shard.requestGuildMembers({
   guild_id: "41771983444115456",
   query: "",
   limit: 0
+})
+```
+
+&nbsp;
+
+### .updatePresence()
+
+Update the bot's status and/or presence in this shard.
+
+|parameter|type|required|default|description|
+|-|-|-|-|-|
+|presence|[UpdatePresenceOptions](#UpdatePresenceOptions)|yes|-|The presence payload|
+
+**returns:** Promise\<void\>
+
+```js
+await shard.updatePresence({
+  status: "online",
+  activities: [{
+    name: "hi",
+    type: 0
+  }]
 })
 ```
 
@@ -320,6 +342,17 @@ If resuming is unsuccessful, the shard is closed with an Invalid Session error a
 |members|array\<object\>|Array of guild member objects|
 |presences|array\<object\>|Array of presence objects|
 |not_found|array\<string\>|Array of not found IDs|
+
+&nbsp;
+
+### UpdatePresenceOptions
+
+|parameter|type|required|default|description|
+|-|-|-|-|-|
+|since|number|no|Date.now() \| null|Since when is the client afk. Defaults to current timestamp if status equals "afk", otherwise defaults to null|
+|afk|boolean|no|false|Whether the client is afk|
+|status|string|no|"online"|The client's new status|
+|activities|array\<object\>|no|[]|Array of activity objects if any|
 
 &nbsp;
 

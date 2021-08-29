@@ -85,6 +85,12 @@ declare module "tiny-discord" {
 		presences: object[]
 		not_found: string[]
 	}
+	export interface PresenceUpdateOptions {
+		since?: number
+		afk?: boolean
+		status?: "online" | "dnd" | "idle" | "invisible" | "offline"
+		activities?: object[]
+	}
 	export class WebsocketShard extends EventEmitter {
 		constructor(options: ShardOptions)
 		on(event: "event", callback: (data: ShardEvent) => void): this
@@ -95,6 +101,7 @@ declare module "tiny-discord" {
 		connect(): Promise<void>
 		send(data: { op: number, d: object }): Promise<void>
 		requestGuildMembers(options: RequestGuildMembersOptions): Promise<GuildMembersResult>
+		updatePresence(presence: PresenceUpdateOptions): Promise<void>
 		ping(data: any): Promise<number>
 		close(): Promise<void>
 		lastPing: number
