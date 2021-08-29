@@ -71,6 +71,12 @@ declare module "tiny-discord" {
 	export interface ShardResumed {
 		replayed: number
 	}
+	export interface PresenceUpdateOptions {
+		since?: number
+		afk?: boolean
+		status?: "online" | "dnd" | "idle" | "invisible" | "offline"
+		activities?: object[]
+	}
 	export interface RequestGuildMembersOptions {
 		guild_id: string
 		query?: string
@@ -85,11 +91,30 @@ declare module "tiny-discord" {
 		presences: object[]
 		not_found: string[]
 	}
-	export interface PresenceUpdateOptions {
-		since?: number
-		afk?: boolean
-		status?: "online" | "dnd" | "idle" | "invisible" | "offline"
-		activities?: object[]
+	export interface UpdateVoiceStateOptions {
+		guild_id: string
+		channel_id?: string
+		self_mute?: boolean
+		self_deaf?: boolean
+		wait_for_server?: boolean
+		timeout?: number
+	}
+	export interface VoiceStateResult {
+		guild_id: string
+		channel_id?: string
+		user_id: string
+		member?: object
+		session_id:	string
+		deaf: boolean
+		mute: boolean
+		self_deaf: boolean
+		self_mute: boolean
+		self_stream?: boolean
+		self_video:	boolean
+		suppress: boolean
+		request_to_speak_timestamp?: string
+		token?: string,
+		endpoint?: string
 	}
 	export class WebsocketShard extends EventEmitter {
 		constructor(options: ShardOptions)
@@ -100,8 +125,9 @@ declare module "tiny-discord" {
 		on(event: "resumed", callback: (data: ShardResumed) => void): this
 		connect(): Promise<void>
 		send(data: { op: number, d: object }): Promise<void>
-		requestGuildMembers(options: RequestGuildMembersOptions): Promise<GuildMembersResult>
 		updatePresence(presence: PresenceUpdateOptions): Promise<void>
+		requestGuildMembers(options: RequestGuildMembersOptions): Promise<GuildMembersResult>
+		updateVoiceState(state: UpdateVoiceStateOptions): Promise<VoiceStateResult>
 		ping(data: any): Promise<number>
 		close(): Promise<void>
 		lastPing: number
