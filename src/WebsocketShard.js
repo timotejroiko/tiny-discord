@@ -40,7 +40,8 @@ class WebsocketShard extends EventEmitter {
 			pingPromise: null,
 			reconnectPromise: null,
 			zlib: null,
-			memberChunks: {}
+			memberChunks: {},
+			voiceChunks: {}
 		};
 	}
 	get lastPing() {
@@ -151,8 +152,8 @@ class WebsocketShard extends EventEmitter {
 		return Promise.resolve();
 	}
 	requestGuildMembers(options) {
-		if(!options || typeof options !== "object") { throw new Error("Invalid options"); }
-		if(typeof options.guild_id !== "string") { throw new Error("Invalid guild_id"); }
+		if(!options || typeof options !== "object") { return Promise.reject(new Error("Invalid options")); }
+		if(typeof options.guild_id !== "string") { return Promise.reject(new Error("Invalid guild_id")); }
 		const chunks = this._internal.memberChunks;
 		const hasUsers = Array.isArray(options.user_ids);
 		const n = ((Date.now() % 86400000 + Math.random()) * 100000000).toString(36);
@@ -194,6 +195,7 @@ class WebsocketShard extends EventEmitter {
 		});
 	}
 	updatePresence(presence) {
+		if(!presence || typeof presence !== "object") { return Promise.reject(new Error("Invalid presence object")); }
 		const data = {
 			since: presence.afk ? Number(presence.since) || Date.now() : null,
 			activities: Array.isArray(presence.activities) ? presence.activities : [],
@@ -209,6 +211,40 @@ class WebsocketShard extends EventEmitter {
 		return this.send({
 			op: 3,
 			d: data
+		});
+	}
+	updateVoiceState(state) {
+		if(!state || typeof state !== "object") { return Promise.reject(new Error("Invalid voice state object")); }
+		if(typeof state.guild_id !== "string") { return Promise.reject(new Error("Invalid guild_id")); }
+		const id = state.guild_id;
+		const channel = typeof state.channel_id === "string" ? state.channel_id : null;
+		const chunks = this._internal.voiceChunks;
+		const timeout = Number.isInteger(state.timeout) ? state.timeout : 10000;
+		this.send({
+			op: 4,
+			d: {
+				guild_id: id,
+				channel_id: channel,
+				self_mute: Boolean(state.self_mute),
+				self_deaf: Boolean(state.self_deaf)
+			}
+		});
+		return new Promise((resolve, reject) => {
+			const timer = setTimeout(() => {
+				delete chunks[id];
+				reject(new Error("Request timed out"));
+			}, timeout);
+			const resolver = () => {
+				clearTimeout(timer);
+				const data = chunks[id];
+				delete chunks[id];
+				resolve(Object.assign(data.state, data.server));
+			};
+			chunks[id] = {
+				resolve: resolver,
+				state: null,
+				server: state.wait_for_server ? null : {}
+			};
 		});
 	}
 	_write(packet, opcode) {
@@ -367,26 +403,41 @@ class WebsocketShard extends EventEmitter {
 			case 0: {
 				const t = data.t;
 				const d = data.d;
-				if(t === "READY") {
-					this.session = d.session_id;
-					this.emit("debug", `Ready, Session = ${d.session_id}`);
-					this.emit("ready", d);
-					return;
-				}
-				if(t === "RESUMED") {
-					d.replayed = internal.replayCount;
-					internal.replayCount = null;
-					this.emit("debug", `Resumed, Session = ${this.session}, replayed = ${d.replayed}`);
-					this.emit("resumed", d);
-					return;
-				}
-				if(t === "GUILD_MEMBERS_CHUNK") {
-					const chunk = this._internal.memberChunks[d.nonce];
-					if(chunk) {
-						chunk.members.push(...d.members);
-						if(d.presences) { chunk.presences.push(...d.presences); }
-						if(d.not_found) { chunk.not_found.push(...d.not_found); }
-						if(++chunk.received === d.chunk_count) { chunk.resolve(); }
+				switch(t) {
+					case "READY": {
+						this.session = d.session_id;
+						this.emit("debug", `Ready, Session = ${d.session_id}`);
+						this.emit("ready", d);
+						return;
+					}
+					case "RESUMED": {
+						d.replayed = internal.replayCount;
+						internal.replayCount = null;
+						this.emit("debug", `Resumed, Session = ${this.session}, replayed = ${d.replayed}`);
+						this.emit("resumed", d);
+						return;
+					}
+					case "GUILD_MEMBERS_CHUNK": {
+						const chunk = this._internal.memberChunks[d.nonce];
+						if(chunk) {
+							chunk.members.push(...d.members);
+							if(d.presences) { chunk.presences.push(...d.presences); }
+							if(d.not_found) { chunk.not_found.push(...d.not_found); }
+							if(++chunk.received === d.chunk_count) { chunk.resolve(); }
+						}
+						break;
+					}
+					case "VOICE_STATE_UPDATE": {
+						const chunk = this._internal.voiceChunks[d.guild_id];
+						if(chunk) {	chunk.state = d; }
+						if(chunk.state && chunk.server) { chunk.resolve(); }
+						break;
+					}
+					case "VOICE_SERVER_UPDATE": {
+						const chunk = this._internal.voiceChunks[d.guild_id];
+						if(chunk) {	chunk.server = d; }
+						if(chunk.state && chunk.server) { chunk.resolve(); }
+						break;
 					}
 				}
 				this.emit("event", data);
