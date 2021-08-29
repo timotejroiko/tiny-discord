@@ -195,7 +195,7 @@ Update a voice connection or connect/disconnect from a voice channel. When conne
 
 |parameter|type|required|default|description|
 |-|-|-|-|-|
-|state|[UpdateVoiceStateOptions](#UpdateVoiceStateOptions)|yes|-|The voice state payload|
+|state|[UpdateVoiceStateOptions](#UpdateVoiceStateOptions)|yes|-|The voice state payload with additional timeout and wait_for_server fields|
 
 **returns:** Promise\<[VoiceStateResult](#VoiceStateResult)\>
 
@@ -387,7 +387,7 @@ If resuming is unsuccessful, the shard is closed with an Invalid Session error a
 |wait_for_server|boolean|no|false|Whether the function should wait for `token` and `endpoint` data to arrive \*|
 |timeout|number|no|10000|How long to wait before giving up|
 
-\* These two values are received separately in a `VOICE_SERVER_UPDATE` event and they are required to connect to the voice websocket. If `server` is set to true, the function will wait for this event to arrive before resolving, however, this event is only sent when connecting or moving to a new voice channel, it will never fire if the client is already connected. The shard does do not know if the client is already connected or not, so to prevent unnecessary timeout errors, the enduser should handle this by caching voiceStates received in `GUILD_CREATE` events.
+\* These two values are received separately in a `VOICE_SERVER_UPDATE` event and they are required to connect to the voice websocket. If `wait_for_server` is set to true, the function will wait for this event to arrive before resolving, however, this event is only sent when connecting or moving to a new voice channel, it will never fire if the client is already connected. The shard does do not know whether the client is connected or not, so to prevent unnecessary timeout errors, the enduser should keep track of existing voice connections by caching voiceStates received in `GUILD_CREATE` events.
 
 &nbsp;
 
@@ -404,7 +404,7 @@ If resuming is unsuccessful, the shard is closed with an Invalid Session error a
 |mute|boolean|Whether the client is muted|
 |self_deaf|boolean|Whether the client is self deafened|
 |self_mute|boolean|Whether the client is self muted|
-|self_stream?|boolean|Whether the client is live (always false)|
+|self_stream?|boolean|Whether the client is live (always undefined)|
 |self_video|boolean|Whether the client is streaming video (always false)|
 |supress|boolean|Whether the client is suppressed|
 |request_to_speak_timestamp?|string|ISO timestamp of the last time the client requested to speak|
