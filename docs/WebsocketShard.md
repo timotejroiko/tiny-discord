@@ -4,7 +4,7 @@ A barebones gateway shard to receive real-time events from discord.
 
 Supports all gateway features including etf encoding and zlib compression.
 
-Automatic reconnection is done only for resuming, other disconnections must be handled by the user.
+Automatic reconnection is done for resume requests and network issues, other disconnections including invalid session must be handled by the user (see `close` event).
 
 Shard-specific rate limits are accounted for and requests will be rejected before they are sent if hit.
 
@@ -41,6 +41,12 @@ Emitted when the READY event is received.
 |-|-|-|
 |data|[ShardReady](#ShardReady)|READY event payload|
 
+```js
+shard.on("ready", data => {
+  console.log(`Shard ${shard.id} ready - ${data.guilds.length} guilds`);
+})
+```
+
 &nbsp;
 
 ### resumed
@@ -50,6 +56,12 @@ Emitted when the RESUMED event is received.
 |parameter|type|description|
 |-|-|-|
 |data|[ShardResumed](#ShardResumed)|RESUMED event payload with an addittional `replayed` field|
+
+```js
+shard.on("resumed", data => {
+  console.log(`resumed - replayed ${data.replayed} events`);
+})
+```
 
 &nbsp;
 
@@ -61,15 +73,33 @@ Emitted when dispatch events are received.
 |-|-|-|
 |data|[ShardEvent](#ShardEvent)|The raw event|
 
+```js
+shard.on("event", data => {
+  console.log(`received ${data.t} event`)
+})
+```
+
 &nbsp;
 
 ### close
 
-Emitted when the shard disconnects. If the disconnection happens at the websocket level, the close code will be available in the reason parameter.
+Emitted when the shard disconnects. The error message will contain the close code and reason if available. Invalid sessions must be handled here to account for identify rate limits (close codes `9`, `4007` and `4009`). Other close codes may be caused by issues that require fixing, therefore they should be checked before reconnecting to prevent spamming the api.
 
 |parameter|type|description|
 |-|-|-|
-|reason|Error|Reason for the disconnection. Depending on the reason you may call `.connect()` again|
+|reason|Error|Reason for the disconnection|
+
+```js
+shard.on("close", error => {
+  const code = error.message.split(" ")[0]
+  if(["9", "4007", "4009"].includes(code)) {
+    // check for identify rate limits somehow
+    shard.connect()
+  } else {
+    console.error(error)
+  }
+})
+```
 
 &nbsp;
 

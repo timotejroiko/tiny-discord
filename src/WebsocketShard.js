@@ -34,7 +34,8 @@ class WebsocketShard extends EventEmitter {
 			lastAck: 0,
 			lastHeartbeat: 0,
 			lastPing: 999,
-			lastData: null,
+			lastReceived: null,
+			lastSent: null,
 			lastError: null,
 			closePromise: null,
 			pingPromise: null,
@@ -59,7 +60,7 @@ class WebsocketShard extends EventEmitter {
 		const key = randomBytes(16).toString("base64");
 		const compression = this.compression === 2 ? "&compress=zlib-stream" : "";
 		const path = `/?v=${this.version}&encoding=${this.encoding}${compression}`;
-		this.emit("debug", "HTTPS: Creating connection");
+		this.emit("debug", "Creating connection");
 		const req = request({
 			hostname: this.url,
 			path: path,
@@ -76,7 +77,7 @@ class WebsocketShard extends EventEmitter {
 				const accept = res.headers["sec-websocket-accept"];
 				if(hash !== accept) {
 					socket.end(() => {
-						this.emit("debug", "Websocket: Failed websocket-key validation");
+						this.emit("debug", "Failed websocket-key validation");
 						reject(new Error(`Invalid Sec-Websocket-Accept: expected ${hash} received ${accept}`));
 					});
 					return;
@@ -92,11 +93,11 @@ class WebsocketShard extends EventEmitter {
 					z._hc = z._handle.close;
 					this._internal.zlib = z;
 				}
-				this.emit("debug", "Websocket: Connected");
+				this.emit("debug", "Connected");
 				resolve();
 			});
 			req.on("error", e => {
-				this.emit("debug", "HTTPS: failed to connect");
+				this.emit("debug", "Failed to connect");
 				reject(e);
 			});
 			req.end();
@@ -143,6 +144,7 @@ class WebsocketShard extends EventEmitter {
 			const remaining = interval._idleStart + interval._repeat - (process.uptime() * 1000);
 			Promise.reject(new Error(`Socket rate limit exceeded, try again in ${remaining}ms`));
 		}
+		internal.lastSent = data;
 		if(this.encoding === "json") {
 			this._write(Buffer.from(JSON.stringify(data)), 1);
 		} else {
@@ -279,7 +281,7 @@ class WebsocketShard extends EventEmitter {
 		const socket = this._socket;
 		const internal = this._internal;
 		if(!socket) { return; }
-		this.emit("debug", "Websocket: Emitted close event, cleaning up");
+		this.emit("debug", "Closed");
 		socket.removeListener("data", this._onReadable);
 		socket.removeListener("error", this._onError);
 		socket.removeListener("close", this._onClose);
@@ -292,7 +294,7 @@ class WebsocketShard extends EventEmitter {
 			internal.zlib = null;
 		}
 		if(internal.reconnectPromise) {
-			this.emit("debug", "Websocket: Reconnecting");
+			this.emit("debug", "Reconnecting");
 			this.connect();
 			return;
 		}
@@ -300,9 +302,13 @@ class WebsocketShard extends EventEmitter {
 			internal.closePromise();
 			return;
 		}
-		if(internal.lastData) {
-			this.emit("debug", "Websocket: Last packet received before closing:");
-			this.emit("debug", internal.lastData);
+		if(internal.lastReceived) {
+			this.emit("debug", "Last packet received before closing:");
+			this.emit("debug", internal.lastReceived);
+		}
+		if(internal.lastSent) {
+			this.emit("debug", "Last packet sent before closing:");
+			this.emit("debug", internal.lastSent);
 		}
 		this.emit("close", internal.lastError);
 	}
@@ -356,7 +362,7 @@ class WebsocketShard extends EventEmitter {
 					z.removeAllListeners("error");
 					if(error) {
 						internal.lastError = error;
-						this.emit("debug", "Websocket: Zlib error");
+						this.emit("debug", "Zlib error");
 						this._write(Buffer.allocUnsafe(0), 8);
 						return;
 					}
@@ -374,18 +380,26 @@ class WebsocketShard extends EventEmitter {
 				break;
 			}
 			case 8: {
-				internal.lastError = new Error(`${(message[0] << 8) + message[1]}${message.length > 2 ? ` - ${message.slice(2).toString()}` : ""}`);
-				this.emit("debug", "Websocket: Received close frame, responding with close");
+				const code = message.length > 1 ? (message[0] << 8) + message[1] : 1005;
+				const reason = message.length > 2 ? message.slice(2).toString() : "";
+				this.emit("debug", `Received close frame with code: ${code} ${reason}`);
+				internal.lastError = new Error(`${code} ${reason}`);
+				if([1000, 1005, 4000].includes(code)) {
+					let resolver;
+					const promise = new Promise(resolve => { resolver = resolve; }).then(() => { internal.reconnectPromise = null; });
+					promise.resolve = resolver;
+					internal.reconnectPromise = promise;
+				}
 				this._write(Buffer.allocUnsafe(0), 8);
 				break;
 			}
 			case 9: {
-				this.emit("debug", "Websocket: received ping frame, responding with pong");
+				this.emit("debug", "Received ping frame, responding with pong");
 				this._write(message, 10);
 				break;
 			}
 			case 10: {
-				this.emit("debug", "Websocket: received pong frame");
+				this.emit("debug", "Received pong frame");
 				if(internal.pingPromise) { internal.pingPromise.resolve(); }
 				break;
 			}
@@ -393,7 +407,7 @@ class WebsocketShard extends EventEmitter {
 	}
 	_processMessage(data) {
 		const internal = this._internal;
-		internal.lastData = data;
+		internal.lastReceived = data;
 		internal.lastPacket = Date.now();
 		if(data.s > this.sequence) {
 			this.sequence = data.s;
@@ -462,7 +476,7 @@ class WebsocketShard extends EventEmitter {
 				this.session = null;
 				this.sequence = 0;
 				internal.replayCount = null;
-				internal.lastError = new Error("Invalid session");
+				internal.lastError = new Error("9 Invalid session");
 				this._write(Buffer.allocUnsafe(0), 8);
 				break;
 			}
