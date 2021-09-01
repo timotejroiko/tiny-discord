@@ -140,7 +140,7 @@ declare module "tiny-discord" {
 		options: Omit<ShardOptions, "session" | "sequence">
 		total: number
 		ids?: number[]
-		shardOptions?: { [id: string]: ShardOptions }
+		shardOptions?: { [id: string]: Omit<ShardOptions, "token" | "intents"> }
 		max_concurrency?: number
 		identifyHook?: (id) => { time?: number, ask?: boolean }
 	}
