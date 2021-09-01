@@ -225,7 +225,7 @@ sharder.getSessions()
 |total|number|yes|-|Total number of shards|
 |ids|array\<number\>|no|[0...total&#x2011;1]|Array of shard ids|
 |identifyHook|(id) => { time, ask? }|no|-|A function to intercept and control shard logins. Use this to manage a global identify queue \*|
-|max_concurrency|number|no|1|How many shards can login at the same time. Ignored if identifyHook is set|
+|concurrency|number|no|1|How many shards can login at the same time. Ignored if identifyHook is set|
 |identifyTimeout|number|no|5500|How long to wait between each identify. Ignored if identifyHook is set|
 
 \* If set, the identifyHook function will be called every time a shard needs to identify. The function can be asynchronous and must return an object containing a `time` field and optionally an `ask` field. If `time` is set to true or 0, the shard will identify immediately. If `time` is set to a number, the shard will wait `time` milliseconds before identifying. If `ask` is set to true, the shard will wait `time` milliseconds and then call the identifyHook function again.
@@ -248,16 +248,23 @@ rest.request({
   path: `/gateway/bot`,
   method: "GET"
 }).then(result => {
-  const sharder = new Sharder({
-    total: result.body.shards,
-    max_concurrency: result.body.session_start_limit.max_concurrency
+
+  const total = result.body.shards
+  const url = result.body.url.slice(6) // remove "wss://"
+  const concurrency = result.body.session_start_limit.max_concurrency;
+
+  const sharder = new InternalSharder({
+    total,
+    concurrency,
     options: {
       token,
       intents: 2,
-      url: result.body.url.slice(6) // remove "wss://"
+      url
     }
   })
+
   sharder.on("error", console.log)
+
   sharder.on("MESSAGE_CREATE", async (message, id) => {
     if(message.content.startsWith("?!hi")) {
       await rest.request({
@@ -267,6 +274,8 @@ rest.request({
       })
     }
   })
+
   sharder.connect()
+
 }).catch(console.error)
 ```

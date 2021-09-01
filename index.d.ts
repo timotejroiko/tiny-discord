@@ -141,7 +141,7 @@ declare module "tiny-discord" {
 		total: number
 		ids?: number[]
 		shardOptions?: { [id: string]: Omit<ShardOptions, "token" | "intents"> }
-		max_concurrency?: number
+		concurrency?: number
 		identifyHook?: (id) => { time?: number, ask?: boolean }
 	}
 	export class InternalSharder extends EventEmitter {

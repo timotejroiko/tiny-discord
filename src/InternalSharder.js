@@ -58,7 +58,7 @@ class InternalSharder extends EventEmitter {
 				});
 			};
 		} else {
-			const concurrency = Number(options.max_concurrency) || 1;
+			const concurrency = Number(options.concurrency) || 1;
 			const time = Number(options.identifyTimeout) || 5500;
 			let count = 0;
 			let lastIdentify = 0;
