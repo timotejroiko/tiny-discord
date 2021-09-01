@@ -17,7 +17,7 @@ Tests and contributions are welcome.
 - [ ] Internal Sharder (wip)
 - [ ] External Sharder?
 - [ ] Ratelimit Manager?
-- [ ] Docs (wip)
+- [x] Docs
 - [ ] Benchmarks
 
 Not everyting in this list is guaranteed to be done. items in questionmarks are ideas and possibilities but not a priority and not necessarily something that will be part of this project.
@@ -30,7 +30,7 @@ Not everyting in this list is guaranteed to be done. items in questionmarks are 
   - [InteractionServer](https://github.com/timotejroiko/tiny-discord/blob/master/docs/InteractionServer.md)
   - Cache (wip)
 - Intermediate components (higher level classes built on top of one or more base components)
-  - Internal Sharder (wip)
+  - [InternalSharder](https://github.com/timotejroiko/tiny-discord/blob/master/docs/InternalSharder.md)
 
 ## LICENSE
 

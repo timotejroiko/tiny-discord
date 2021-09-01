@@ -1,12 +1,12 @@
 # InternalSharder
 
-A basic implementation of an internal shard manager. This class creates and manages instances of the [WebsocketShard](../WebsocketShard.md) component from this library.
+A basic implementation of an internal shard manager. This class creates and manages instances of the [WebsocketShard](WebsocketShard.md) component from this library.
 
 Supports concurrent logins (large bot sharding) and provides a hook for externally controlled login queues (ie: process sharding / clustering / etc).
 
 Once spawned, shards will always attempt to reconnect regardless of reason, therefore the user should listen to the error event to make sure shards do not crash in a loop. All close codes are forwarded to the error event so that the user can see when and why a shard disconnects.
 
-The InternalSharder does not connect to the rest api by itself, the user must use the [RestClient](../RestClient.md) or any other http client to call `/gateway/bot` and obtain the relevant gateway information before spawning shards.
+The InternalSharder does not connect to the rest api by itself, the user must use the [RestClient](RestClient.md) or any other http client to call `/gateway/bot` and obtain the relevant gateway information before spawning shards.
 
 &nbsp;
 
@@ -58,7 +58,7 @@ Emitted when a shard received a READY event.
 
 |parameter|type|description|
 |-|-|-|
-|data|[ShardReady](../WebsocketShard.md#ShardReady)|READY event payload|
+|data|[ShardReady](WebsocketShard.md#ShardReady)|READY event payload|
 |id|number|The shard id|
 
 ```js
@@ -75,7 +75,7 @@ Emitted when a shard received a RESUMED event.
 
 |parameter|type|description|
 |-|-|-|
-|data|[ShardResumed](../WebsocketShard.md#ShardResumed)|RESUMED event payload with an addittional `replayed` field|
+|data|[ShardResumed](WebsocketShard.md#ShardResumed)|RESUMED event payload with an addittional `replayed` field|
 |id|number|The shard id|
 
 ```js
@@ -92,7 +92,7 @@ Emitted when a shard receives a dispatch event.
 
 |parameter|type|description|
 |-|-|-|
-|data|[ShardEvent](../WebsocketShard.md#ShardEvent)|The raw event|
+|data|[ShardEvent](WebsocketShard.md#ShardEvent)|The raw event|
 |id|number|The shard id|
 
 ```js
@@ -154,7 +154,7 @@ Internal debugging information.
 
 ### shards
 
-A Map of [WebsocketShard](../WebsocketShard.md) instances.
+A Map of [WebsocketShard](WebsocketShard.md) instances.
 
 **type:** Map\<id, WebsocketShard\>
 
@@ -220,8 +220,8 @@ sharder.getSessions()
 
 |parameter|type|required|default|description|
 |-|-|-|-|-|
-|options|[ShardOptions](../WebsocketShard.md#ShardOptions)|yes|-|Options to be applied to all shards|
-|shardOptions|object{[id: string]: [ShardOptions](../WebsocketShard.md#ShardOptions)}|no|-|Shard-specific option overrides. Use this to set sessions for each shard|
+|options|[ShardOptions](WebsocketShard.md#ShardOptions)|yes|-|Options to be applied to all shards|
+|shardOptions|object{[id: string]: [ShardOptions](WebsocketShard.md#ShardOptions)}|no|-|Shard-specific option overrides. Use this to set sessions for each shard|
 |total|number|yes|-|Total number of shards|
 |ids|array\<number\>|no|[0...total-1]|Array of shard ids|
 |identifyHook|(id) => { time, ask? }|no|-|A function to intercept and control shard logins. Use this to manage a global identify queue \*|
