@@ -56,7 +56,7 @@ class WebsocketShard extends EventEmitter {
 		return 1; // connected
 	}
 	connect() {
-		if(this._socket) { Promise.reject(new Error("Already connected")); }
+		if(this._socket) { return Promise.resolve(); }
 		const key = randomBytes(16).toString("base64");
 		const compression = this.compression === 2 ? "&compress=zlib-stream" : "";
 		const path = `/?v=${this.version}&encoding=${this.encoding}${compression}`;
@@ -78,7 +78,10 @@ class WebsocketShard extends EventEmitter {
 				if(hash !== accept) {
 					socket.end(() => {
 						this.emit("debug", "Failed websocket-key validation");
-						reject(new Error(`Invalid Sec-Websocket-Accept: expected ${hash} received ${accept}`));
+						const error = new Error("Invalid Sec-Websocket-Accept");
+						error.expected = hash;
+						error.received = accept;
+						reject(error);
 					});
 					return;
 				}
@@ -139,10 +142,12 @@ class WebsocketShard extends EventEmitter {
 		if(internal.reconnectPromise) { return internal.reconnectPromise.then(() => this.send(data)); }
 		if(!this._socket) { return Promise.reject(new Error("Not connected")); }
 		if(!isValidRequest(data)) { return Promise.reject(new Error("Invalid request")); }
-		if(++internal.ratelimitCount > 115 && data.op !== 1) {
+		if(++internal.ratelimitCount > 115 && ![1, 2, 6].includes(data.op)) {
 			const interval = internal.ratelimitInterval;
 			const remaining = interval._idleStart + interval._repeat - (process.uptime() * 1000);
-			Promise.reject(new Error(`Socket rate limit exceeded, try again in ${remaining}ms`));
+			const error = new Error("Socket rate limit exceeded");
+			error.retry_after = remaining;
+			Promise.reject(error);
 		}
 		internal.lastSent = data;
 		if(this.encoding === "json") {
@@ -160,7 +165,7 @@ class WebsocketShard extends EventEmitter {
 		const hasUsers = Array.isArray(options.user_ids);
 		const n = ((Date.now() % 86400000 + Math.random()) * 100000000).toString(36);
 		const timeout = Number.isInteger(options.timeout) ? options.timeout : 10000;
-		this.send({
+		return this.send({
 			op: 8,
 			d: {
 				guild_id: options.guild_id,
@@ -170,8 +175,7 @@ class WebsocketShard extends EventEmitter {
 				user_ids: hasUsers ? options.user_ids : void 0,
 				nonce: n
 			}
-		});
-		return new Promise((resolve, reject) => {
+		}).then(() => new Promise((resolve, reject) => {
 			const timer = setTimeout(() => {
 				delete chunks[n];
 				reject(new Error("Request timed out"));
@@ -194,7 +198,7 @@ class WebsocketShard extends EventEmitter {
 				presences: [],
 				not_found: []
 			};
-		});
+		}));
 	}
 	updatePresence(presence) {
 		if(!presence || typeof presence !== "object") { return Promise.reject(new Error("Invalid presence object")); }
@@ -222,7 +226,7 @@ class WebsocketShard extends EventEmitter {
 		const channel = typeof state.channel_id === "string" ? state.channel_id : null;
 		const chunks = this._internal.voiceChunks;
 		const timeout = Number.isInteger(state.timeout) ? state.timeout : 10000;
-		this.send({
+		return this.send({
 			op: 4,
 			d: {
 				guild_id: id,
@@ -230,8 +234,7 @@ class WebsocketShard extends EventEmitter {
 				self_mute: Boolean(state.self_mute),
 				self_deaf: Boolean(state.self_deaf)
 			}
-		});
-		return new Promise((resolve, reject) => {
+		}).then(() => new Promise((resolve, reject) => {
 			const timer = setTimeout(() => {
 				delete chunks[id];
 				reject(new Error("Request timed out"));
@@ -247,7 +250,7 @@ class WebsocketShard extends EventEmitter {
 				state: null,
 				server: state.wait_for_server ? null : {}
 			};
-		});
+		}));
 	}
 	_write(packet, opcode) {
 		const socket = this._socket;
@@ -383,8 +386,14 @@ class WebsocketShard extends EventEmitter {
 				const code = message.length > 1 ? (message[0] << 8) + message[1] : 1005;
 				const reason = message.length > 2 ? message.slice(2).toString() : "";
 				this.emit("debug", `Received close frame with code: ${code} ${reason}`);
-				internal.lastError = new Error(`${code} ${reason}`);
-				if([1000, 1005, 4000].includes(code)) {
+				const error = new Error("Websocket closed");
+				error.code = code;
+				error.reason = reason;
+				internal.lastError = error;
+				if([4001, 4007, 4009].includes(code)) {
+					this.session = null;
+					this.sequence = 0;
+				} else if([1000, 1005, 4000].includes(code)) {
 					let resolver;
 					const promise = new Promise(resolve => { resolver = resolve; }).then(() => { internal.reconnectPromise = null; });
 					promise.resolve = resolver;
@@ -443,14 +452,18 @@ class WebsocketShard extends EventEmitter {
 					}
 					case "VOICE_STATE_UPDATE": {
 						const chunk = this._internal.voiceChunks[d.guild_id];
-						if(chunk) {	chunk.state = d; }
-						if(chunk.state && chunk.server) { chunk.resolve(); }
+						if(chunk) {
+							chunk.state = d;
+							if(chunk.state && chunk.server) { chunk.resolve(); }
+						}
 						break;
 					}
 					case "VOICE_SERVER_UPDATE": {
 						const chunk = this._internal.voiceChunks[d.guild_id];
-						if(chunk) {	chunk.server = d; }
-						if(chunk.state && chunk.server) { chunk.resolve(); }
+						if(chunk) {
+							chunk.server = d;
+							if(chunk.state && chunk.server) { chunk.resolve(); }
+						}
 						break;
 					}
 				}
@@ -475,8 +488,11 @@ class WebsocketShard extends EventEmitter {
 				this.emit("debug", "Received invalid session");
 				this.session = null;
 				this.sequence = 0;
+				const error = new Error("Gateway opcode 9 - Invalid session");
+				error.code = 9;
+				error.reason = "Invalid session";
 				internal.replayCount = null;
-				internal.lastError = new Error("9 Invalid session");
+				internal.lastError = error;
 				this._write(Buffer.allocUnsafe(0), 8);
 				break;
 			}

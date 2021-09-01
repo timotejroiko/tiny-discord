@@ -83,20 +83,22 @@ shard.on("event", data => {
 
 ### close
 
-Emitted when the shard disconnects. The error message will contain the close code and reason if available. Invalid sessions must be handled here to account for identify rate limits (close codes `9`, `4007` and `4009`). Other close codes may be caused by issues that require fixing, therefore they should be checked before reconnecting to prevent spamming the api.
+Emitted when the shard disconnects. The error message will contain the close code and reason if available. Invalidated sessions must be handled here to account for identify rate limits. Other close codes may be caused by issues that require fixing, therefore they should be checked before reconnecting to prevent spamming the api.
 
 |parameter|type|description|
 |-|-|-|
 |reason|Error|Reason for the disconnection|
 
 ```js
-shard.on("close", error => {
-  const code = error.message.split(" ")[0]
-  if(["9", "4007", "4009"].includes(code)) {
-    // check for identify rate limits somehow
+shard.on("close", async error => {
+  console.log(error);
+  // if the error is not serious, we can reconnect
+  if(checkIfErrorIsNotSeriousSomehow(error)) {
+    if(!shard.session) {
+      // session lost, check for identify rate limits somehow
+      await checkForIdentifyRatelimitsSomehow()
+    }
     shard.connect()
-  } else {
-    console.error(error)
   }
 })
 ```
