@@ -204,7 +204,7 @@ sharder.getAveragePing()
 
 Get the current sessions and sequences from all shards.
 
-**returns:** object{[id: string], { session: string, sequence: number }}
+**returns:** object{[id], { session: string, sequence: number }}
 
 ```js
 sharder.getSessions()
@@ -221,9 +221,9 @@ sharder.getSessions()
 |parameter|type|required|default|description|
 |-|-|-|-|-|
 |options|[ShardOptions](WebsocketShard.md#ShardOptions)|yes|-|Options to be applied to all shards|
-|shardOptions|object{[id: string]: [ShardOptions](WebsocketShard.md#ShardOptions)}|no|-|Shard-specific option overrides. Use this to set sessions for each shard|
+|shardOptions|object{[id]:&#160;[ShardOptions](WebsocketShard.md#ShardOptions)}|no|-|Shard-specific option overrides. Use this to set sessions for each shard|
 |total|number|yes|-|Total number of shards|
-|ids|array\<number\>|no|[0...total-1]|Array of shard ids|
+|ids|array\<number\>|no|[0...total&#x2011;1]|Array of shard ids|
 |identifyHook|(id) => { time, ask? }|no|-|A function to intercept and control shard logins. Use this to manage a global identify queue \*|
 |max_concurrency|number|no|1|How many shards can login at the same time. Ignored if identifyHook is set|
 |identifyTimeout|number|no|5500|How long to wait between each identify. Ignored if identifyHook is set|
