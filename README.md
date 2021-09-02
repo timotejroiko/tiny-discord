@@ -14,7 +14,7 @@ Tests and contributions are welcome.
 - [ ] Voice Websocket?
 - [ ] Basic Caching (wip)
 - [x] Basic types
-- [ ] Internal Sharder (wip)
+- [x] Internal Sharder
 - [ ] External Sharder?
 - [ ] Ratelimit Manager?
 - [x] Docs

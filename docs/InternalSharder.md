@@ -224,7 +224,7 @@ sharder.getSessions()
 |shardOptions|{&#160;[id]:&#160;[ShardOptions](WebsocketShard.md#ShardOptions)&#160;}|no|-|Shard-specific option overrides. Use this to set sessions for each shard|
 |total|number|yes|-|Total number of shards|
 |ids|array\<number\>|no|[0...total&#x2011;1]|Array of shard ids|
-|identifyHook|(id) => { time, ask? }|no|-|A function to intercept and control shard logins. Use this to manage a global identify queue \*|
+|identifyHook|(id, total) => { time, ask? }|no|-|A function to intercept and control shard logins. Use this to manage a global identify queue \*|
 |concurrency|number|no|1|How many shards can login at the same time. Ignored if identifyHook is set|
 |identifyTimeout|number|no|5500|How long to wait between each identify. Ignored if identifyHook is set|
 
@@ -249,9 +249,9 @@ rest.request({
   method: "GET"
 }).then(result => {
 
-  const total = result.body.shards
+  const total = result.body.shards // recommended shards
   const url = result.body.url.slice(6) // remove "wss://"
-  const concurrency = result.body.session_start_limit.max_concurrency;
+  const concurrency = result.body.session_start_limit.max_concurrency
 
   const sharder = new InternalSharder({
     total,
