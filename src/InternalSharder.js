@@ -33,7 +33,7 @@ class InternalSharder extends EventEmitter {
 		this.shards = new Map();
 		if(typeof options.identifyHook === "function") {
 			this._identify = id => {
-				options.identifyHook(id, this.total).then(response => {
+				Promise.resolve(options.identifyHook(id)).then(response => {
 					if(!response) { return Promise.reject(new Error("Invalid response from identifyHook")); }
 					if(response.time > 0) {
 						setTimeout(() => {

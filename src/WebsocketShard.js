@@ -21,7 +21,7 @@ class WebsocketShard extends EventEmitter {
 		this.version = Number(options.version) || 9;
 		this.encoding = typeof options.encoding === "string" && options.encoding.toLowerCase() === "etf" ? "etf" : "json";
 		this.compression = [0, 1, 2].includes(options.compression = Number(options.compression)) ? options.compression : 0;
-		this.url = typeof options.url === "string" ? options.url : "gateway.discord.gg";
+		this.url = typeof options.url === "string" ? options.url.includes("://") ? options.url.split("://")[1] : options.url : "gateway.discord.gg";
 		this.session = typeof options.session === "string" ? options.session : null;
 		this.sequence = Number(options.sequence) || 0;
 		this._socket = null;
