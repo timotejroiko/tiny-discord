@@ -286,13 +286,13 @@ await shard.send({
 |session|string|no|-|Existing session id to resume \*\*\*|
 |sequence|number|no|0|Existing sequence to resume \*\*\*|
 
-\* Etf is up to 10% smaller than json but 60% slower to unpack.  
+\* Etf is up to 10% smaller than json but about 30% slower to unpack.  
 Generally json encoding is recommended unless saving bandwidth is a priority.
 
 \*\* 0 = no compression, 1 = packet compression, 2 = transport compression.  
-Packet compression is about 80% smaller but 25% slower to unpack.  
-Transport compression is about 85% smaller and up to 10% slower to unpack.  
-Generally transport compression is highly recommended, the bandwidth savings are huge and the performance impact is very small.
+Packet compression is about 80% smaller but about 30% slower to unpack.  
+Transport compression is about 85% smaller but about 20% slower to unpack.  
+Generally transport compression is recommended, its faster and smaller than packet compression and the bandwith savings are very significant.
 
 \*\*\* If both session and sequence are defined, the shard will attempt to resume.  
 If resuming is successful, the `resumed` event will be fired instead of `ready`.  

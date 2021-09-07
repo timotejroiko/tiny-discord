@@ -94,6 +94,7 @@ class WebsocketShard extends EventEmitter {
 					z._c = z.close;
 					z._h = z._handle;
 					z._hc = z._handle.close;
+					z._v = () => void 0;
 					this._internal.zlib = z;
 				}
 				this.emit("debug", "Connected");
@@ -338,7 +339,7 @@ class WebsocketShard extends EventEmitter {
 		const internal = this._internal;
 		switch(opcode) {
 			case 1: {
-				const packet = JSON.parse(message);
+				const packet = JSON.parse(message.toString());
 				this._processMessage(packet);
 				break;
 			}
@@ -346,22 +347,24 @@ class WebsocketShard extends EventEmitter {
 				let packet;
 				if(this.compression === 2) {
 					const z = internal.zlib;
-					z.close = () => void 0;
-					z._handle.close = () => void 0;
 					let error = null;
 					let data = null;
+					z.close = z._handle.close = z._v;
 					try {
 						data = z._processChunk(message, Z_SYNC_FLUSH);
 					} catch(e) {
 						error = e;
 					}
-					if(message.readUInt32BE(message.length - 4) !== 65535) {
+					const l = message.length;
+					if(message[l - 4] !== 0 || message[l - 3] !== 0 || message[l - 2] !== 255 || message[l - 1] !== 255) {
 						console.log(message, message.toString(), data, data.toString());
 						throw new Error("discord actually does send fragmented zlib messages. if you see this error let me know");
 					}
 					z.close = z._c;
 					z._handle = z._h;
 					z._handle.close = z._hc;
+					z._events.error = void 0;
+					z._eventCount--;
 					z.removeAllListeners("error");
 					if(error) {
 						internal.lastError = error;
@@ -369,10 +372,10 @@ class WebsocketShard extends EventEmitter {
 						this._write(Buffer.allocUnsafe(0), 8);
 						return;
 					}
-					packet = this.encoding === "json" ? JSON.parse(data) : readETF(data, 1);
+					packet = this.encoding === "json" ? JSON.parse(data.toString()) : readETF(data, 1);
 				} else if(this.encoding === "json") {
 					const data = inflateSync(message);
-					packet = JSON.parse(data);
+					packet = JSON.parse(data.toString());
 				} else if(this.compression === 1 && message[1] === 80) {
 					const data = inflateSync(message.slice(6));
 					packet = readETF(data, 0);
@@ -581,6 +584,7 @@ function readRange(socket, index, bytes) {
 }
 
 function readETF(data, start) {
+	let view;
 	let x = start;
 	const loop = () => {
 		const type = data[x++];
@@ -595,11 +599,10 @@ function readETF(data, start) {
 			}
 			case 100: {
 				const length = data.readUInt16BE(x);
-				let atom;
-				if(length > 15) {
+				let atom = "";
+				if(length > 30) {
 					atom = data.latin1Slice(x += 2, x + length);
 				} else {
-					atom = "";
 					for(let i = x += 2; i < x + length; i++) {
 						atom += String.fromCharCode(data[i]);
 					}
@@ -634,11 +637,25 @@ function readETF(data, start) {
 			}
 			case 109: {
 				const length = data.readUInt32BE(x);
-				const str = data.utf8Slice(x += 4, x + length);
+				let str = "";
+				if(length > 30) {
+					str = data.utf8Slice(x += 4, x + length);
+				} else {
+					const l = x + length;
+					let i = x += 4;
+					while(i < l) {
+						let byte = data[i++];
+						if(byte < 128) { str += String.fromCharCode(byte); }
+						else if(byte < 224) { str += String.fromCharCode(((byte & 31) << 6) + (data[i++] & 63)); }
+						else if(byte < 240) { str += String.fromCharCode(((byte & 15) << 12) + ((data[i++] & 63) << 6) + (data[i++] & 63)); }
+						else { str += String.fromCodePoint(((byte & 7) << 18) + ((data[i++] & 63) << 12) + ((data[i++] & 63) << 6) + (data[i++] & 63)); }
+					}
+				}
 				x += length;
 				return str;
 			}
 			case 110: {
+				if(!view) { view = new DataView(data.buffer, data.offset, data.byteLength); }
 				const length = data[x++];
 				const sign = data[x++];
 				let left = length;
@@ -646,13 +663,13 @@ function readETF(data, start) {
 				while(left > 0) {
 					if(left >= 8) {
 						num <<= 64n;
-						num += data.readBigUInt64LE(x + (left -= 8));
+						num += view.getBigUint64(x + (left -= 8), true);
 					} else if(left >= 4) {
 						num <<= 32n;
-						num += BigInt(data.readUInt32LE(x + (left -= 4)));
+						num += BigInt(view.getUint32(x + (left -= 4)), true);
 					} else if(left >= 2) {
 						num <<= 16n;
-						num += BigInt(data.readUInt16LE(x + (left -= 2)));
+						num += BigInt(view.getUint16(x + (left -= 2)), true);
 					} else {
 						num <<= 8n;
 						num += BigInt(data[x]);
