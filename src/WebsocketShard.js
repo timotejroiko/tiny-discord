@@ -641,8 +641,8 @@ function readETF(data, start) {
 				if(length > 30) {
 					str = data.utf8Slice(x += 4, x + length);
 				} else {
-					const l = x + length;
 					let i = x += 4;
+					const l = x + length;
 					while(i < l) {
 						let byte = data[i++];
 						if(byte < 128) { str += String.fromCharCode(byte); }
