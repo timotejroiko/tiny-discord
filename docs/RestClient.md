@@ -257,7 +257,7 @@ const rest = new RestClient({
   token: "uvuvwevwevwe.onyetenyevwe.ugwemubwem.ossas",
 });
 
-rest.request(`/channels/999999999999999999/messages`, {
+rest.post(`/channels/999999999999999999/messages`, {
   payload_json: {
     content: "hello",
     embeds: [
