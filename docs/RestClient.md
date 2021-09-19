@@ -238,12 +238,8 @@ const rest = new RestClient({
   token: "uvuvwevwevwe.onyetenyevwe.ugwemubwem.ossas",
 });
 
-rest.request({
-  path: `/channels/999999999999999999/messages`,
-  method: "POST",
-  body: {
-    content: "hello world"
-  }
+rest.post(`/channels/999999999999999999/messages`, {
+  content: "hello world"
 }).then(result => {
     console.log(result.status, result.headers, result.body);
 }).catch(console.error);
@@ -261,34 +257,30 @@ const rest = new RestClient({
   token: "uvuvwevwevwe.onyetenyevwe.ugwemubwem.ossas",
 });
 
-rest.request({
-  path: `/channels/999999999999999999/messages`,
-  method: "POST",
-  body: {
-    payload_json: {
-      content: "hello",
-      embeds: [
-        {
-          title: "embed1",
-          image: { url: "attachment://a.png" }
-        },
-        {
-          title: "embed2",
-          image: { url: "attachment://b.png" }
-        }
-      ]
-    },
-    files: [
+rest.request(`/channels/999999999999999999/messages`, {
+  payload_json: {
+    content: "hello",
+    embeds: [
       {
-        name: "a.png",
-        data: readFileSync("./file1.png")
+        title: "embed1",
+        image: { url: "attachment://a.png" }
       },
       {
-        name: "b.png",
-        data: createReadStream("./file2.png")
+        title: "embed2",
+        image: { url: "attachment://b.png" }
       }
     ]
-  }
+  },
+  files: [
+    {
+      name: "a.png",
+      data: readFileSync("./file1.png")
+    },
+    {
+      name: "b.png",
+      data: createReadStream("./file2.png")
+    }
+  ]
 }).then(result => {
     console.log(result.status, result.headers, result.body);
 }).catch(console.error);
