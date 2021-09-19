@@ -2,11 +2,11 @@
 
 A barebones client for interacting with the discord rest API.
 
-Supports all JSON endpoints including file uploading with multipart/form-data for both bot and bearer tokens. It does not support oauth2 nor other urlencoded endpoints.
+Supports all JSON endpoints including file uploading with multipart/form-data for both bot and bearer tokens. It also supports CDN endpoints but does not support oauth2 nor other urlencoded endpoints.
 
 Rate limits are not accounted for, the response headers are returned to the user for them to create their own rate limit handling.
 
-Non-200 status codes are returned normally along with headers and body when available, only internal/network errors are thrown.
+Non-200 status codes are returned normally along with headers and body when available, only internal/network errors are thrown, so always check for status codes.
 
 &nbsp;
 
@@ -30,9 +30,118 @@ const client = new RestClient({ token: "abc" })
 
 &nbsp;
 
+### .get(path, options)
+
+Make a GET request to the Discord API.
+
+|parameter|type|required|default|description|
+|-|-|-|-|-|
+|path|string|yes|-|The url for this request|
+|options|[RequestOptions](#RequestOptions)|no|-|Additional options for this request, excluding path and method|
+
+**Returns:** [AbortablePromise](#AbortablePromise)\<[ApiResponse](#ApiResponse)\>
+
+```js
+await client.get("/channels/9999/messages/77777")
+```
+
+&nbsp;
+
+### .delete(path, options)
+
+Make a DELETE request to the Discord API.
+
+|parameter|type|required|default|description|
+|-|-|-|-|-|
+|path|string|yes|-|The url for this request|
+|options|[RequestOptions](#RequestOptions)|no|-|Additional options for this request, excluding path and method|
+
+**Returns:** [AbortablePromise](#AbortablePromise)\<[ApiResponse](#ApiResponse)\>
+
+```js
+await client.delete("/channels/9999/messages/77777")
+```
+
+&nbsp;
+
+### .post(path, body, options)
+
+Make a POST request to the Discord API.
+
+|parameter|type|required|default|description|
+|-|-|-|-|-|
+|path|string|yes|-|The endpoint url for this request|
+|body|object|yes|-|The request body for this request|
+|options|[RequestOptions](#RequestOptions)|no|-|Additional options for this request, excluding path, method and body|
+
+**Returns:** [AbortablePromise](#AbortablePromise)\<[ApiResponse](#ApiResponse)\>
+
+```js
+await client.post("/channels/9999/messages", {
+  content: "hi"
+})
+```
+
+&nbsp;
+
+### .patch(path, body, options)
+
+Make a PATCH request to the Discord API.
+
+|parameter|type|required|default|description|
+|-|-|-|-|-|
+|path|string|yes|-|The endpoint url for this request|
+|body|object|yes|-|The request body for this request|
+|options|[RequestOptions](#RequestOptions)|no|-|Additional options for this request, excluding path, method and body|
+
+**Returns:** [AbortablePromise](#AbortablePromise)\<[ApiResponse](#ApiResponse)\>
+
+```js
+await client.patch("/channels/9999/messages/5555", {
+  content: "hi again"
+})
+```
+
+&nbsp;
+
+### .put(path, body, options)
+
+Make a PUT request to the Discord API.
+
+|parameter|type|required|default|description|
+|-|-|-|-|-|
+|path|string|yes|-|The endpoint url for this request|
+|body|object|no|-|The request body for this request if applicable|
+|options|[RequestOptions](#RequestOptions)|no|-|Additional options for this request, excluding path, method and body|
+
+**Returns:** [AbortablePromise](#AbortablePromise)\<[ApiResponse](#ApiResponse)\>
+
+```js
+await client.put("/channels/9999/pins/5555")
+```
+
+&nbsp;
+
+### .cdn(path, options)
+
+Make a GET request to the Discord CDN.
+
+|parameter|type|required|default|description|
+|-|-|-|-|-|
+|path|string|yes|-|The endpoint url for this request|
+|options|[RequestOptions](#RequestOptions)|no|-|Additional options for this request, excluding path and method|
+
+**Returns:** [AbortablePromise](#AbortablePromise)\<[ApiResponse](#ApiResponse)\>
+
+```js
+await client.cdn("/attachments/55555/777777/a.png")
+```
+
+&nbsp;
+
 ### .request(data)
 
-Make a request to the Discord API.
+Make a raw request to the Discord API.
 
 |parameter|type|required|default|description|
 |-|-|-|-|-|
@@ -77,6 +186,7 @@ await client.request({
 |options|object|no|-|Additional `https.request` options, if any|
 |retries|number|no|RestClientOptions.retries|override default max retries for this request|
 |timeout|number|no|RestClientOptions.timeout|override default timeout for this request|
+|cdn|boolean|no|false|whether to send to the cdn instead of the api|
 
 \* If a `file` or `files` field exists on the `body` object, the request will be converted to multipart/form-data. Unlike most other fields, these fields are not fully defined in the Discord API documentation, its up to the library to implement them. RestClient implements them as follows:
 
@@ -95,7 +205,7 @@ await client.request({
 |-|-|-|
 |status|number|Response status code|
 |headers|object|Response headers|
-|body|object \| string|Response body according to content-type header|
+|body|object \| string \| buffer|Response body according to content-type header|
 
 &nbsp;
 

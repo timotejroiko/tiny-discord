@@ -174,11 +174,12 @@ declare module "tiny-discord" {
 		options?: import("https").RequestOptions
 		retries?: number
 		timeout?: number
+		cdn?: boolean
 	}
 	export interface RestResponse {
 		status: number
 		headers: object
-		body: object | string
+		body: object | string | Buffer
 	}
 	interface AbortablePromise<T> extends Promise<T> {
 		abort(reason?: string): void
@@ -186,5 +187,11 @@ declare module "tiny-discord" {
 	export class RestClient {
 		constructor(options: RestClientOptions)
 		request(options: RestRequestOptions): AbortablePromise<RestResponse>
+		get(path: string, options?: RestRequestOptions): AbortablePromise<RestResponse>
+		delete(path: string, options?: RestRequestOptions): AbortablePromise<RestResponse>
+		post(path: string, body: object, options?: RestRequestOptions): AbortablePromise<RestResponse>
+		patch(path: string, body: object, options?: RestRequestOptions): AbortablePromise<RestResponse>
+		put(path: string, body?: object, options?: RestRequestOptions): AbortablePromise<RestResponse>
+		cdn(path: string, options?: RestRequestOptions): AbortablePromise<RestResponse>
 	}
 }

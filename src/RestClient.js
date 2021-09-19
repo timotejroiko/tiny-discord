@@ -14,20 +14,66 @@ class RestClient {
 		this.timeout = Number(options.timeout) || 10000;
 		this._agent = new Agent({ keepAlive: true });
 	}
-	request({ path, method, body, headers = {}, options = {}, retries = this.retries, timeout = this.timeout, _retries = 0 }) {
+	get(path, options = {}) {
+		return this.request({
+			...options,
+			path,
+			method: "GET"
+		});
+	}
+	delete(path, options = {}) {
+		return this.request({
+			...options,
+			path,
+			method: "DELETE"
+		});
+	}
+	post(path, body, options = {}) {
+		return this.request({
+			...options,
+			path,
+			body,
+			method: "POST"
+		});
+	}
+	patch(path, body, options = {}) {
+		return this.request({
+			...options,
+			path,
+			body,
+			method: "PATCH"
+		});
+	}
+	put(path, body, options = {}) {
+		return this.request({
+			...options,
+			path,
+			body,
+			method: "PUT"
+		});
+	}
+	cdn(path, options = {}) {
+		return this.request({
+			...options,
+			path,
+			method: "GET",
+			cdn: true
+		});
+	}
+	request({ path, method, body, headers = {}, options = {}, retries = this.retries, timeout = this.timeout, _retries = 0, cdn = false }) {
 		let abort;
 		const promise = new Promise((resolve, reject) => {
 			const req = request({
 				...options,
-				hostname: "discord.com",
+				hostname: cdn ? "cdn.discordapp.com" : "discord.com",
 				port: 443,
-				path: `/api/v${this.version}/${path.split("/").filter(Boolean).join("/")}`,
+				path: `/${cdn ? "" : `api/v${this.version}/`}${path.split("/").filter(Boolean).join("/")}`,
 				method: method.toUpperCase(),
 				agent: this._agent,
 				headers: {
-					"User-Agent": `DiscordBot (https://github.com/timotejroiko/tiny-discord, ${require("./package.json").version}) Node.js/${process.version}`,
+					"User-Agent": `DiscordBot (https://github.com/timotejroiko/tiny-discord, ${require("../package.json").version}) Node.js/${process.version}`,
 					...headers,
-					"Content-Type": "application/json",
+					...body && { "Content-Type": "application/json" },
 					"Authorization": `${this.type} ${this.token}`
 				}
 			});
@@ -66,17 +112,18 @@ class RestClient {
 					if(aborted) { return; }
 					abort(err);
 				});
-				let data = "";
-				res.setEncoding("utf8");
-				res.on("data", d => { data += d; });
+				const data = [];
+				res.on("data", d => data.push(d));
 				res.once("end", () => {
 					if(res.aborted || !res.complete) {
 						if(aborted) { return; }
 						return abort(new Error("Received incomplete message"));
 					}
-					if(res.headers["content-type"] === "application/json") {
+					const type = res.headers["content-type"];
+					const body = Buffer.concat(data);
+					if(type === "application/json") {
 						try {
-							const json = JSON.parse(data);
+							const json = JSON.parse(body.toString());
 							done({
 								status: res.statusCode,
 								headers: res.headers,
@@ -89,7 +136,7 @@ class RestClient {
 						done({
 							status: res.statusCode,
 							headers: res.headers,
-							body: data
+							body: type.startsWith("text") ? body.toString() : body
 						});
 					}
 				});

@@ -267,10 +267,8 @@ rest.request({
 
   sharder.on("MESSAGE_CREATE", async (message, id) => {
     if(message.content.startsWith("?!hi")) {
-      await rest.request({
-        path: `/channels/${message.channel_id}/messages`,
-        method: "POST",
-        body: { content: "hello!" }
+      await rest.post(`/channels/${message.channel_id}/messages`, {
+        content: "hello!"
       })
     }
   })
