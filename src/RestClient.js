@@ -142,17 +142,15 @@ class RestClient {
 				});
 			});
 			if(body) {
-				let files = body.file || body.files;
-				if(files) {
-					delete body.file;
-					delete body.files;
-					if(!Array.isArray(files)) { files = [files]; }
+				const files = body.files;
+				if(Array.isArray(files)) {
 					const boundary = randomBytes(16).toString("base64");
 					const writer = async () => {
 						req.setHeader("Content-Type", `multipart/form-data; boundary=${boundary}`);
-						for(const file of files) {
+						for(let i = 0; i < files.length; i++) {
+							const file = files[i];
 							if(!file || typeof file !== "object" || !file.name || !file.data) { throw new Error("Invalid file object"); }
-							req.write(`\r\n--${boundary}\r\nContent-Disposition: form-data; name="${file.name}"; filename="${file.name}"\r\n\r\n`);
+							req.write(`\r\n--${boundary}\r\nContent-Disposition: form-data; name="files[${i}]"; filename="${file.name}"\r\n\r\n`);
 							if(file.data instanceof Readable) {
 								for await(const chunk of file.data) {
 									req.write(chunk);
@@ -163,7 +161,7 @@ class RestClient {
 						}
 						if(body.payload_json) {
 							const json = JSON.stringify(body.payload_json);
-							req.write(`\r\n--${boundary}\r\nContent-Disposition: form-data; name="payload_json"\r\n\r\n${json}`);
+							req.write(`\r\n--${boundary}\r\nContent-Disposition: form-data; name="payload_json"\r\nContent-Type: application/json\r\n\r\n${json}`);
 						} else {
 							for(const entry of Object.entries(body)) {
 								req.write(`\r\n--${boundary}\r\nContent-Disposition: form-data; name="${entry[0]}"\r\n\r\n${entry[1].toString()}`);

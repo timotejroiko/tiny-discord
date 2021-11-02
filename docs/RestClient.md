@@ -186,16 +186,14 @@ await client.request({
 |options|object|no|-|Additional `https.request` options, if any|
 |retries|number|no|RestClientOptions.retries|override default max retries for this request|
 |timeout|number|no|RestClientOptions.timeout|override default timeout for this request|
-|cdn|boolean|no|false|whether to send to the cdn instead of the api|
+|cdn|boolean|no|false|whether to send a request to the cdn instead of the rest api|
 
-\* If a `file` or `files` field exists on the `body` object, the request will be converted to multipart/form-data. Unlike most other fields, these fields are not fully defined in the Discord API documentation, its up to the library to implement them. RestClient implements them as follows:
+\* If a `files` field exists on the `body` object, the request will be converted to multipart/form-data as per the Discord API specifications. RestClient implements `files` as an array of `file` objects defined as follows:
 
 |parameter|type|required|default|description|
 |-|-|-|-|-|
-|file|object|no|-|A file to send|
-|file.name|string|yes|-|The file name including extension|
-|file.data|buffer \| stream|yes|-|The file data|
-|files|array\<file\>|no|-|Array of files to send|
+|name|string|yes|-|The file name including extension|
+|data|buffer \| stream|yes|-|The file data as a Buffer or ReadableStream|
 
 &nbsp;
 
@@ -247,7 +245,7 @@ rest.post(`/channels/999999999999999999/messages`, {
 
 &nbsp;
 
-Sending a message with multiple embeds and images:
+Sending a message with multiple embeds and attachments:
 
 ```js
 const { RestClient } = require("tiny-discord");
@@ -260,6 +258,18 @@ const rest = new RestClient({
 rest.post(`/channels/999999999999999999/messages`, {
   payload_json: {
     content: "hello",
+    attachments: [
+      {
+        "id": 0,
+        "description": "file named a",
+        "filename": "a.png"
+      },
+      {
+        "id": 1,
+        "description": "file named b",
+        "filename": "b.png"
+      }
+    ]
     embeds: [
       {
         title: "embed1",
