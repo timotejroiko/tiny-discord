@@ -150,7 +150,8 @@ class RestClient {
 						for(let i = 0; i < files.length; i++) {
 							const file = files[i];
 							if(!file || typeof file !== "object" || !file.name || !file.data) { throw new Error("Invalid file object"); }
-							req.write(`\r\n--${boundary}\r\nContent-Disposition: form-data; name="files[${i}]"; filename="${file.name}"\r\n\r\n`);
+							const type = typeof file.type === "string" ? `\r\nContent-Type: ${file.type}` : "";
+							req.write(`\r\n--${boundary}\r\nContent-Disposition: form-data; name="files[${i}]"; filename="${file.name}"${type}\r\n\r\n`);
 							if(file.data instanceof Readable) {
 								for await(const chunk of file.data) {
 									req.write(chunk);
