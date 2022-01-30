@@ -191,7 +191,7 @@ await client.request({
 \* If a `files` field exists on the `body` object, the request will be converted to multipart/form-data as per the Discord API specifications. RestClient implements `files` as an array of `file` objects defined as follows:
 
 |parameter|type|required|description|
-|-|-|-|-|-|
+|-|-|-|-|
 |name|string|yes|The file name including extension|
 |data|buffer \| stream|yes|The file data as a Buffer or ReadableStream|
 |type|string|no|The file's MIME type, for example "image/png". If not provided, Discord will attempt to auto-detect it from the file extension|
