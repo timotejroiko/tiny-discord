@@ -6,13 +6,13 @@ const WebsocketShard = require("./WebsocketShard");
 class InternalSharder extends EventEmitter {
 	constructor(options) {
 		if(!options || typeof options !== "object") { throw new Error("Invalid options"); }
-		if(typeof options.token !== "string") { throw new Error("Invalid token"); }
-		if(!Number.isInteger(options.intents)) { throw new Error("Invalid intents"); }
 		if(!options.options) { options.options = {}; }
+		if(typeof options.options.token !== "string") { throw new Error("Invalid token"); }
+		if(!Number.isInteger(options.options.intents)) { throw new Error("Invalid intents"); }
 		super();
 		this.options = {
-			token: options.token,
-			intents: options.intents,
+			token: options.options.token,
+			intents: options.options.intents,
 			large_threshold: options.options.large_threshold,
 			presence: options.options.presence,
 			properties: options.options.properties,
