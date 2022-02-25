@@ -286,7 +286,7 @@ class WebsocketShard extends EventEmitter {
 		const internal = this._internal;
 		if(!socket) { return; }
 		this.emit("debug", "Closed");
-		socket.removeListener("data", this._onReadable);
+		socket.removeListener("readable", this._onReadable);
 		socket.removeListener("error", this._onError);
 		socket.removeListener("close", this._onClose);
 		this._socket = null;
@@ -648,7 +648,12 @@ function readETF(data, start) {
 						if(byte < 128) { str += String.fromCharCode(byte); }
 						else if(byte < 224) { str += String.fromCharCode(((byte & 31) << 6) + (data[i++] & 63)); }
 						else if(byte < 240) { str += String.fromCharCode(((byte & 15) << 12) + ((data[i++] & 63) << 6) + (data[i++] & 63)); }
-						else { str += String.fromCodePoint(((byte & 7) << 18) + ((data[i++] & 63) << 12) + ((data[i++] & 63) << 6) + (data[i++] & 63)); }
+						else {
+							const point = ((byte & 7) << 18) + ((data[i++] & 63) << 12) + ((data[i++] & 63) << 6) + (data[i++] & 63);
+							const c1 = 55296 + ((point - 65536) >> 10);
+							const c2 = 55296 + ((point - 65536) & 1023);
+							str += String.fromCharCode(c1, c2);
+						}
 					}
 				}
 				x += length;
