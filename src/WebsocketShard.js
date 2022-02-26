@@ -729,9 +729,29 @@ function writeETF(data) {
 				break;
 			}
 			case "number": {
-				b[i++] = 98;
-				b.writeUInt32BE(obj, i);
-				i += 4;
+				if(Number.isInteger(obj)) {
+					const abs = Math.abs(obj);
+					if(abs < 2147483648) {
+						b[i++] = 98;
+						b.writeInt32BE(obj, i);
+						i += 4;
+					} else if(abs < Number.MAX_SAFE_INTEGER) {
+						b[i++] = 110;
+						b[i++] = 8;
+						b[i++] = obj < 0;
+						b.writeBigUInt64LE(BigInt(abs), i);
+						i += 8;
+						break;
+					} else {
+						b[i++] = 70;
+						b.writeDoubleBE(obj, i);
+						i += 8;
+					}
+				} else {
+					b[i++] = 70;
+					b.writeDoubleBE(obj, i);
+					i += 8;
+				}
 				break;
 			}
 			case "bigint": {
