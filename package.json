@@ -1,7 +1,7 @@
 {
   "name": "tiny-discord",
   "version": "0.0.1",
-  "description": "Basic components for interacting with the Discord API with zero dependencies",
+  "description": "High performance zero dependency raw library for interacting with the Discord API",
   "homepage": "https://github.com/timotejroiko/tiny-discord",
   "repository": {
     "url": "https://github.com/timotejroiko/tiny-discord"

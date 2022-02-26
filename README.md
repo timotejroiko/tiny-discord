@@ -1,8 +1,8 @@
 # Tiny Discord
 
-Basic components for interacting with the Discord API with zero dependencies.
+A high performance zero dependency raw library for interacting with the Discord API.
 
-The goal of this project is to offer a basic platform for building high-efficiency bots and libraries in NodeJS. Its base components are plug and play standalone files fully written with core NodeJS modules without a single third-party dependency.
+This project aims to provide a basic platform for building high-efficiency bots and libraries in NodeJS. Its base components are plug and play standalone files fully written with core node.js modules, without a single third-party dependency, and consistently outperform other more established solutions.
 
 Tests and contributions are welcome.
 
@@ -34,7 +34,7 @@ Not everyting in this list is guaranteed to be done. items in questionmarks are 
 
 ## Benchmarks
 
-Events per second each library can process.
+How many events per second can each library process in a single shard.
 
 |test/lib|discord.js|eris|detritus|tiny-discord|
 |-|-|-|-|-|
