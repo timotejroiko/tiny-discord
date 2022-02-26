@@ -181,14 +181,14 @@ await client.request({
 |-|-|-|-|-|
 |path|string|yes|-|Api endpoint|
 |method|string|yes|-|Api method|
-|body|object|no|-|Data to send, if any \*|
+|body|object\|buffer|no|-|Data to send, if any \*|
 |headers|object|no|-|Additional headers to send, if any|
 |options|object|no|-|Additional `https.request` options, if any|
 |retries|number|no|RestClientOptions.retries|override default max retries for this request|
 |timeout|number|no|RestClientOptions.timeout|override default timeout for this request|
 |cdn|boolean|no|false|whether to send a request to the cdn instead of the rest api|
 
-\* If a `files` field exists on the `body` object, the request will be converted to multipart/form-data as per the Discord API specifications. RestClient implements `files` as an array of `file` objects defined as follows:
+\* If `body` is a buffer, it will be sent as is. If its an object, it will be stringified and sent as `application/json` or `multipart/formdata` depending on whether it contains a `files` field. RestClient implements `files` as an array of `file` objects defined as follows:
 
 |parameter|type|required|description|
 |-|-|-|-|
