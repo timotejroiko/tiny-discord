@@ -34,7 +34,7 @@ Not everyting in this list is guaranteed to be done. items in questionmarks are 
 
 ## Benchmarks
 
-How many events per second can each library process in a single shard.
+The following benchmark shows how many events per second can each library process in a single shard. It demonstrates the performance advantages of using the raw discord data directly as opposed to transforming it into complex classes and structures.
 
 |test/lib|discord.js|eris|detritus|tiny-discord|
 |-|-|-|-|-|
