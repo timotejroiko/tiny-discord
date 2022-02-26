@@ -73,7 +73,7 @@ class RestClient {
 				headers: {
 					"User-Agent": `DiscordBot (https://github.com/timotejroiko/tiny-discord, ${require("../package.json").version}) Node.js/${process.version}`,
 					...headers,
-					...body && typeof body === "object" && !Buffer.isBuffer(Object) && { "Content-Type": "application/json" },
+					...body && typeof body === "object" && !Buffer.isBuffer(body) && { "Content-Type": "application/json" },
 					"Authorization": `${this.type} ${this.token}`
 				}
 			});
