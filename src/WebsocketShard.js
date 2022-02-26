@@ -738,7 +738,7 @@ function writeETF(data) {
 					} else if(abs < Number.MAX_SAFE_INTEGER) {
 						b[i++] = 110;
 						b[i++] = 8;
-						b[i++] = obj < 0;
+						b[i++] = Number(obj < 0);
 						b.writeBigUInt64LE(BigInt(abs), i);
 						i += 8;
 						break;
