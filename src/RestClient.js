@@ -73,7 +73,7 @@ class RestClient {
 				headers: {
 					"User-Agent": `DiscordBot (https://github.com/timotejroiko/tiny-discord, ${require("../package.json").version}) Node.js/${process.version}`,
 					...headers,
-					...body && { "Content-Type": "application/json" },
+					...body && typeof body === "object" && !Buffer.isBuffer(Object) && { "Content-Type": "application/json" },
 					"Authorization": `${this.type} ${this.token}`
 				}
 			});
@@ -142,8 +142,11 @@ class RestClient {
 				});
 			});
 			if(body) {
-				const files = body.files;
-				if(Array.isArray(files)) {
+				if(Buffer.isBuffer(body)) {
+					req.write(body);
+					req.end();
+				} else if(Array.isArray(body.files)) {
+					const files = body.files;
 					const boundary = randomBytes(16).toString("base64");
 					const writer = async () => {
 						req.setHeader("Content-Type", `multipart/form-data; boundary=${boundary}`);
