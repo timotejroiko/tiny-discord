@@ -96,7 +96,7 @@ class InternalSharder extends EventEmitter {
 			}
 			promises.push(shard.connect());
 		}
-		return Promise.all(promises);
+		return Promise.all(promises).then(() => void 0);
 	}
 	close() {
 		const promises = [];

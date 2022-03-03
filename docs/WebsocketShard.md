@@ -143,7 +143,7 @@ The shard's latency from the last time it was measured. Measurements are made au
 
 ### .connect()
 
-Connect to the gateway. If session id and sequence are defined in the shard options, a resume will be attempted, otherwise a new identify will be made.
+Connect to the gateway. If session id and sequence are defined in the shard options, a resume will be attempted, otherwise a new identify will be made. Resolves once the shard establishes a websocket connection.
 
 **returns:** Promise\<void\>
 

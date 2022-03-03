@@ -166,9 +166,9 @@ A Map of [WebsocketShard](WebsocketShard.md) instances.
 
 ### .connect()
 
-Spawn all shards and begin connecting. If `session_id` and `sequence` are defined in [InternalSharderOptions](#InternalSharderOptions).shardOptions, a resume will be attempted, otherwise a new identify will be queued. This method does not wait for the shards to connect.
+Spawn all shards and begin connecting. If `session_id` and `sequence` are defined in [InternalSharderOptions](#InternalSharderOptions).shardOptions, a resume will be attempted, otherwise a new identify will be queued. Resolves once all shards establish a websocket connection.
 
-**returns:** void
+**returns:** Promise\<void\>
 
 ```js
 sharder.connect()
