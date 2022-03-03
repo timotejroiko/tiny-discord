@@ -31,48 +31,19 @@ class InternalSharder extends EventEmitter {
 			this.ids = Array(options.total).fill().map((_, i) => i);
 		}
 		this.shards = new Map();
-		if(typeof options.identifyHook === "function") {
-			this._identify = id => {
-				Promise.resolve(options.identifyHook(id)).then(response => {
-					if(!response) { return Promise.reject(new Error("Invalid response from identifyHook")); }
-					if(response.time > 0) {
-						setTimeout(() => {
-							if(response.ask) {
-								this._identify(id);
-							} else {
-								this.shards.get(id).connect().then(() => this.emit("connect", id)).catch(e => {
-									this.emit("error", e);
-									this._identify(id);
-								});
-							}
-						}, response.time);
-					} else {
-						this.shards.get(id).connect().then(() => this.emit("connect", id)).catch(e => {
-							this.emit("error", e);
-							this._identify(id);
-						});
-					}
-				}).catch(e => {
-					this.emit("error", e);
-					setTimeout(() => this._identify(id), 5000);
-				});
-			};
-		} else {
-			const concurrency = Number(options.concurrency) || 1;
-			const time = Number(options.identifyTimeout) || 5500;
-			let count = 0;
-			let lastIdentify = 0;
-			this._identify = id => {
+		if(typeof options.options.identifyHook !== "function") {
+			const concurrency = Number.isInteger(options.concurrency) ? options.concurrency : 1;
+			const timeout = Number.isInteger(options.timeout) ? options.timeout : 5500;
+			const bucket = Array(concurrency).fill(0);
+			this.options.identifyHook = function(id) {
 				const now = Date.now();
-				if(lastIdentify > now - time && ++count % concurrency === 0) {
-					setTimeout(() => this._identify(id), lastIdentify + time - now);
-					return;
+				const bucketID = id % concurrency;
+				const current = bucket[bucketID];
+				if (current > now) {
+					return { time: current - now, ask: true };
 				}
-				lastIdentify = now;
-				this.shards.get(id).connect().then(() => this.emit("connect", id)).catch(e => {
-					this.emit("error", e);
-					this._identify(id);
-				});
+				bucket[bucketID] = now + timeout;
+				return { time: 0, ask: true };
 			};
 		}
 	}
@@ -94,6 +65,7 @@ class InternalSharder extends EventEmitter {
 		return sessions;
 	}
 	connect() {
+		const promises = [];
 		for(const id of this.ids) {
 			let shard = this.shards.get(id);
 			if(!shard) {
@@ -102,35 +74,29 @@ class InternalSharder extends EventEmitter {
 					id: id,
 					total: this.total
 				}, options));
+				shard.on("ready", data => this.emit("ready", data, id));
+				shard.on("resumed", data => this.emit("resumed", data, id));
+				shard.on("debug", msg => this.emit("debug", `[Shard ${id}] ${msg}`));
+				shard.on("close", error => {
+					this.emit("error", error);
+					if(shard.session && shard.sequence) {
+						shard.connect().then(() => this.emit("connect", id)).catch(e => {
+							this.emit("error", e);
+							this._identify(id);
+						});
+					} else {
+						this._identify(id);
+					}
+				});
+				shard.on("event", data => {
+					this.emit("event", data, id);
+					this.emit(data.t, data.d, id);
+				});
 				this.shards.set(id, shard);
 			}
-			shard.on("ready", data => this.emit("ready", data, id));
-			shard.on("resumed", data => this.emit("resumed", data, id));
-			shard.on("debug", msg => this.emit("debug", `[Shard ${id}] ${msg}`));
-			shard.on("close", error => {
-				this.emit("error", error);
-				if(shard.session && shard.sequence) {
-					shard.connect().then(() => this.emit("connect", id)).catch(e => {
-						this.emit("error", e);
-						this._identify(id);
-					});
-				} else {
-					this._identify(id);
-				}
-			});
-			shard.on("event", data => {
-				this.emit("event", data, id);
-				this.emit(data.t, data.d, id);
-			});
-			if(shard.session && shard.sequence) {
-				shard.connect().then(() => this.emit("connect", id)).catch(e => {
-					this.emit("error", e);
-					this._identify(id);
-				});
-			} else {
-				this._identify(id);
-			}
+			promises.push(shard.connect());
 		}
+		return Promise.all(promises);
 	}
 	close() {
 		const promises = [];

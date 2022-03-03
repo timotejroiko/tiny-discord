@@ -24,6 +24,7 @@ class WebsocketShard extends EventEmitter {
 		this.url = typeof options.url === "string" ? options.url.includes("://") ? options.url.split("://")[1] : options.url : "gateway.discord.gg";
 		this.session = typeof options.session === "string" ? options.session : null;
 		this.sequence = Number(options.sequence) || 0;
+		this.identifyHook = typeof options.identifyHook === "function" ? options.identifyHook : null;
 		this._socket = null;
 		this._internal = {
 			replayCount: 0,
@@ -276,6 +277,30 @@ class WebsocketShard extends EventEmitter {
 		frame.set(packet, frame.length - length);
 		socket.write(frame);
 	}
+	async _identify() {
+		if(typeof this.identifyHook === "function") {
+			const response = await this.identifyHook(this.id);
+			if(Number.isInteger(response.time) && response.time > 0) {
+				await new Promise(r => setTimeout(r, response.time));
+				if(response.ask) {
+					return this._identify();
+				}
+			}
+		}
+		this.emit("debug", "Identifying");
+		this.send({
+			op: 2,
+			d: {
+				token: this.token,
+				intents: this.intents,
+				properties: this.properties,
+				compress: this.compression === 1,
+				large_threshold: this.large_threshold,
+				presence: this.presence,
+				shard: [this.id, this.total]
+			}
+		});
+	}
 	_onError(error) {
 		if(!this._socket) { return; }
 		this._internal.lastError = error;
@@ -522,19 +547,7 @@ class WebsocketShard extends EventEmitter {
 						}
 					});
 				} else {
-					this.emit("debug", "Identifying");
-					this.send({
-						op: 2,
-						d: {
-							token: this.token,
-							intents: this.intents,
-							properties: this.properties,
-							compress: this.compression === 1,
-							large_threshold: this.large_threshold,
-							presence: this.presence,
-							shard: [this.id, this.total]
-						}
-					});
+					this._identify();
 				}
 				break;
 			}

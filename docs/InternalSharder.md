@@ -2,7 +2,7 @@
 
 A basic implementation of an internal shard manager. This class creates and manages instances of the [WebsocketShard](WebsocketShard.md) component from this library.
 
-Supports concurrent logins (large bot sharding) and provides a hook for externally controlled login queues (ie: process sharding / clustering / etc).
+Supports concurrent logins (large bot sharding / max_concurrency) and shards provide hooks for externally controlled login queues (ie: process sharding / clustering / etc).
 
 Once spawned, shards will always attempt to reconnect regardless of reason, therefore the user should listen to the error event to make sure shards do not crash in a loop. All close codes are forwarded to the error event so that the user can see when and why a shard disconnects.
 
@@ -220,15 +220,14 @@ sharder.getSessions()
 
 |parameter|type|required|default|description|
 |-|-|-|-|-|
+|total|number|no \*|ids.length|Total number of shards|
+|ids|array\<number\>|no \*|[0...total&#x2011;1]|Array of shard ids managed by this sharder|
 |options|[ShardOptions](WebsocketShard.md#ShardOptions)|yes|-|Options to be applied to all shards|
 |shardOptions|{&#160;[id]:&#160;[ShardOptions](WebsocketShard.md#ShardOptions)&#160;}|no|-|Shard-specific option overrides. Use this to set sessions for each shard|
-|total|number|yes|-|Total number of shards|
-|ids|array\<number\>|no|[0...total&#x2011;1]|Array of shard ids|
-|identifyHook|(id) => { time, ask? }|no|-|A function to intercept and control shard logins. Use this to manage a global identify queue \*|
-|concurrency|number|no|1|How many shards can login at the same time. Ignored if identifyHook is set|
-|identifyTimeout|number|no|5500|How long to wait between each identify. Ignored if identifyHook is set|
+|concurrency|number|no|1|How many shards can identify at the same time. Ignored if options.identifyHook is set|
+|timeout|number|no|5500|How long to wait between each identify bucket. Ignored if options.identifyHook is set|
 
-\* If set, the identifyHook function will be called every time a shard needs to identify. The function can be asynchronous and must return an object containing a `time` field and optionally an `ask` field. If `time` is set to true or 0, the shard will identify immediately. If `time` is set to a number, the shard will wait `time` milliseconds before identifying. If `ask` is set to true, the shard will wait `time` milliseconds and then call the identifyHook function again.
+\* At least one of `total` or `ids` is required.
 
 &nbsp;
 
