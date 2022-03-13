@@ -4,7 +4,7 @@ A barebones gateway shard to receive real-time events from discord.
 
 Supports all gateway features including etf encoding and zlib compression.
 
-Automatic reconnection is done for resume requests and network issues, other disconnections including invalid session must be handled by the user (see `close` event).
+Automatic reconnection is done for resume requests, network issues and all resumable close codes. Unresumable close codes like invalid session must be handled by the user (see `close` event).
 
 Shard-specific rate limits are accounted for and requests will be rejected before they are sent if hit.
 
@@ -85,7 +85,9 @@ shard.on("event", data => {
 
 ### close
 
-Emitted when the shard disconnects. The error message will contain the close code and reason if available. Invalidated sessions must be handled here to account for identify rate limits. Other close codes may be caused by issues that require fixing, therefore they should be checked before reconnecting to prevent spamming the api.
+Emitted when the shard disconnects with an unresumable close code and will not reconnect. The error message will contain the close code and reason if available. Unresumable close codes may be caused by issues that require fixing, therefore they should be checked and fixed before reconnecting to prevent spamming the api.
+
+To log other types of disconnections and reconnections use the debug event.
 
 |parameter|type|description|
 |-|-|-|
@@ -94,22 +96,14 @@ Emitted when the shard disconnects. The error message will contain the close cod
 ```js
 shard.on("close", async error => {
   console.log(error);
-  // if the error is not serious, we can reconnect
-  if(checkIfErrorIsNotSeriousSomehow(error)) {
-    if(!shard.session) {
-      // session lost, check for identify rate limits somehow
-      await checkForIdentifyRatelimitsSomehow()
-    }
-    shard.connect()
-  }
-})
+});
 ```
 
 &nbsp;
 
 ### debug
 
-Internal debugging information.
+Internal debugging information including disconnections and reconnections.
 
 |parameter|type|description|
 |-|-|-|

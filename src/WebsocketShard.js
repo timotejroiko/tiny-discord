@@ -310,7 +310,7 @@ class WebsocketShard extends EventEmitter {
 		const socket = this._socket;
 		const internal = this._internal;
 		if(!socket) { return; }
-		this.emit("debug", "Closed");
+		this.emit("debug", "Connection closed");
 		socket.removeListener("readable", this._onReadable);
 		socket.removeListener("error", this._onError);
 		socket.removeListener("close", this._onClose);
@@ -328,7 +328,7 @@ class WebsocketShard extends EventEmitter {
 			return;
 		}
 		if(internal.closePromise) {
-			internal.closePromise();
+			internal.closePromise.resolve();
 			return;
 		}
 		if(internal.lastReceived) {
@@ -411,7 +411,7 @@ class WebsocketShard extends EventEmitter {
 				break;
 			}
 			case 8: {
-				const code = message.length > 1 ? (message[0] << 8) + message[1] : 1005;
+				const code = message.length > 1 ? (message[0] << 8) + message[1] : 0;
 				const reason = message.length > 2 ? message.slice(2).toString() : "";
 				this.emit("debug", `Received close frame with code: ${code} ${reason}`);
 				const error = new Error("Websocket closed");
@@ -421,13 +421,14 @@ class WebsocketShard extends EventEmitter {
 				if([4001, 4007, 4009].includes(code)) {
 					this.session = null;
 					this.sequence = 0;
-				} else if([1000, 1005, 4000].includes(code)) {
+				}
+				if(!internal.closePromise && ![4004, 4010, 4011, 4012, 4013, 4014].includes(code)) {
 					let resolver;
 					const promise = new Promise(resolve => { resolver = resolve; }).then(() => { internal.reconnectPromise = null; });
 					promise.resolve = resolver;
 					internal.reconnectPromise = promise;
 				}
-				this._write(Buffer.allocUnsafe(0), 8);
+				this._write(Buffer.from([code >> 8, code & 255]), 8); // echo close code
 				break;
 			}
 			case 9: {
@@ -505,10 +506,6 @@ class WebsocketShard extends EventEmitter {
 			}
 			case 7: {
 				this.emit("debug", "Discord asked us to reconnect");
-				let resolver;
-				const promise = new Promise(resolve => { resolver = resolve; }).then(() => { internal.reconnectPromise = null; });
-				promise.resolve = resolver;
-				internal.reconnectPromise = promise;
 				this._write(Buffer.allocUnsafe(0), 8);
 				break;
 			}
