@@ -4,7 +4,7 @@ A basic implementation of an internal shard manager. This class creates and mana
 
 Supports concurrent logins (large bot sharding / max_concurrency) and shards provide hooks for externally controlled login queues (ie: process sharding / clustering / etc).
 
-Once spawned, shards will always attempt to reconnect regardless of reason, therefore the user should listen to the error event to make sure shards do not crash in a loop. All close codes are forwarded to the error event so that the user can see when and why a shard disconnects.
+Once spawned, shards will automatically attempt to resume or reconnect on network failures, invalid sessions and resumable close codes. Unresumable close codes will emit an `error` event and will not reconnect, therefore the user should listen it and fix any issues that may appear. Other types of disconnections and reconnections can be monitored via the `debug` event.
 
 The InternalSharder does not connect to the rest api by itself, the user must use the [RestClient](RestClient.md) or any other http client to call `/gateway/bot` and obtain the relevant gateway information before spawning shards.
 
@@ -196,7 +196,7 @@ The current individual shard options that are passed to each shard.
 
 Object containing the current session limit data and other information managed by this sharder. Only available if identify hooks were not used and this sharder is the sole manager for all shards.
 
-**type:** [Controller](#controller) | null
+**type:** [ControllerObject](#controllerobject) | null
 
 &nbsp;
 
@@ -271,7 +271,7 @@ sharder.getCurrentSessions()
 
 &nbsp;
 
-### Controller
+### ControllerObject
 
 |key|type|description|
 |-|-|-|
