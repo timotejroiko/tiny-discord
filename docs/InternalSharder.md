@@ -152,11 +152,51 @@ Internal debugging information.
 
 &nbsp;
 
+### ids
+
+An array of shard ids managed by this sharder.
+
+**type:** Array\<number\>
+
+&nbsp;
+
+### total
+
+The total number of shards everywhere.
+
+**type:** number
+
+&nbsp;
+
 ### shards
 
 A Map of [WebsocketShard](WebsocketShard.md) instances.
 
-**type:** Map\<id, WebsocketShard\>
+**type:** Map\<id, [WebsocketShard](WebsocketShard.md)\>
+
+&nbsp;
+
+### options
+
+The current options object passed to all shards.
+
+**type:** [ShardOptions](WebsocketShard.md#shardoptions)
+
+&nbsp;
+
+### shardOptions
+
+The current individual shard options that are passed to each shard.
+
+**type:** { [id], [ShardOptions](WebsocketShard.md#shardoptions) }
+
+&nbsp;
+
+### controller
+
+Object containing the current session limit data and other information managed by this sharder. Only available if identify hooks were not used and this sharder is the sole manager for all shards.
+
+**type:** [Controller](#controller) | null
 
 &nbsp;
 
@@ -190,7 +230,7 @@ await sharder.close()
 
 ### .getAveragePing()
 
-Get the average latency for all shards.
+Get the average latency for all shards based on their last measurement.
 
 **returns:** number
 
@@ -200,14 +240,14 @@ sharder.getAveragePing()
 
 &nbsp;
 
-### .getSessions()
+### .getCurrentSessions()
 
-Get the current sessions and sequences from all shards.
+Get the current session ids and sequences from all shards. Use this data to resume after a process restart.
 
 **returns:** { [id], { session: string, sequence: number } }
 
 ```js
-sharder.getSessions()
+sharder.getCurrentSessions()
 ```
 
 &nbsp;
@@ -220,14 +260,26 @@ sharder.getSessions()
 
 |parameter|type|required|default|description|
 |-|-|-|-|-|
-|total|number|no \*|ids.length|Total number of shards|
-|ids|array\<number\>|no \*|[0...total&#x2011;1]|Array of shard ids managed by this sharder|
+|total|number|yes if no ids|ids.length|Total number of shards|
+|ids|array\<number\>|yes if no total|[0...total&#x2011;1]|Array of shard ids managed by this sharder|
 |options|[ShardOptions](WebsocketShard.md#ShardOptions)|yes|-|Options to be applied to all shards|
 |shardOptions|{&#160;[id]:&#160;[ShardOptions](WebsocketShard.md#ShardOptions)&#160;}|no|-|Shard-specific option overrides. Use this to set sessions for each shard|
-|concurrency|number|no|1|How many shards can identify at the same time. Ignored if options.identifyHook is set|
-|timeout|number|no|5500|How long to wait between each identify bucket. Ignored if options.identifyHook is set|
+|session_start_limit|object|yes if no options.identifyHook|-|Session limit information from /gateway/bot. Ignored if options.identifyHook is set \*|
+|timeout|number|no|5500|How long to wait between each identify group. Ignored if options.identifyHook is set \*|
 
-\* At least one of `total` or `ids` is required.
+\* A single instance of InternalSharder is able to maintain control over concurrency, login limits and identify sequence with data from the `session_start_limit` object. However if multiprocessing and clustering is used, control has to be handed over to a master process via identify hooks.
+
+&nbsp;
+
+### Controller
+
+|key|type|description|
+|-|-|-|
+|total|number|Total number of daily logins available|
+|remaining|number|Remaining number of daily logins available|
+|resetTimestamp|number|Timestamp at which the daily login limit will be reset|
+|concurrency|number|The current max_concurrency value being used for the login queue|
+|timeout|number|The delay between each identify attempt|
 
 &nbsp;
 
@@ -248,13 +300,13 @@ rest.request({
   method: "GET"
 }).then(result => {
 
-  const total = result.body.shards
-  const url = result.body.url
-  const concurrency = result.body.session_start_limit.max_concurrency
+  const total = result.body.shards // recommended shard count
+  const url = result.body.url // gateway url, default url will be used if omitted
+  const session_start_limit = result.body.session_start_limit; // session info including max_concurrency and remaining daily logins
 
   const sharder = new InternalSharder({
     total,
-    concurrency,
+    session_start_limit,
     options: {
       token,
       intents: 2,

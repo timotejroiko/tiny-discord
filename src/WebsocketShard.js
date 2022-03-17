@@ -458,14 +458,14 @@ class WebsocketShard extends EventEmitter {
 				switch(t) {
 					case "READY": {
 						this.session = d.session_id;
-						this.emit("debug", `Ready, Session = ${d.session_id}`);
+						this.emit("debug", `Ready! Session = ${d.session_id}`);
 						this.emit("ready", d);
 						return;
 					}
 					case "RESUMED": {
 						d.replayed = internal.replayCount;
 						internal.replayCount = null;
-						this.emit("debug", `Resumed, Session = ${this.session}, replayed = ${d.replayed}`);
+						this.emit("debug", `Resumed! Session = ${this.session}, replayed = ${d.replayed}`);
 						this.emit("resumed", d);
 						return;
 					}
