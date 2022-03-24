@@ -284,7 +284,8 @@ await shard.send({
 |identifyHook|(id) => { time, ask? }|no|-|A function that is called before every identify \*\*\*\*|
 
 \* Etf can be up to 10% smaller than json but about 30% slower to unpack.  
-Generally json encoding is recommended unless saving bandwidth is a priority.
+Etf also natively supports bigints while json doesnt, therefore discord snowflakes are returned as bigints instead of strings to avoid needless conversions.  
+Generally json encoding is recommended unless using bigints and saving bandwidth is a priority.
 
 \*\* 0 = no compression, 1 = packet compression, 2 = transport compression.  
 Packet compression is about 80% smaller but about 30% slower to unpack.  
@@ -293,7 +294,7 @@ Generally transport compression is recommended, its faster and smaller than pack
 
 \*\*\* If both session and sequence are defined, the shard will attempt to resume.  
 If resuming is successful, the `resumed` event will be fired instead of `ready`.  
-If resuming is unsuccessful, the shard is closed with an Invalid Session error and the session data is cleared.
+If resuming is unsuccessful, the shard will clear the session data and restart with a new session.
 
 \*\*\*\* If set, the identifyHook function will be called every time the shard needs to identify. The function can be asynchronous and must return an object containing a `time` field and optionally an `ask` field. If `time` is set to 0 or not an integer, the shard will identify immediately. If `time` is set to a positive integer, the shard will wait `time` milliseconds before identifying. If `ask` is set to true, the shard will wait `time` milliseconds and then call the identifyHook function again.
 
