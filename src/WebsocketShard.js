@@ -301,6 +301,18 @@ class WebsocketShard extends EventEmitter {
 			}
 		});
 	}
+	_resume() {
+		this._internal.replayCount = 0;
+		this.emit("debug", "Resuming");
+		this.send({
+			op: 6,
+			d: {
+				token: this.token,
+				session_id: this.session,
+				seq: this.sequence
+			}
+		});
+	}
 	_onError(error) {
 		if(!this._socket) { return; }
 		this._internal.lastError = error;
@@ -511,14 +523,13 @@ class WebsocketShard extends EventEmitter {
 			}
 			case 9: {
 				this.emit("debug", "Received invalid session");
-				this.session = null;
-				this.sequence = 0;
-				const error = new Error("Gateway opcode 9 - Invalid session");
-				error.code = 9;
-				error.reason = "Invalid session";
-				internal.replayCount = null;
-				internal.lastError = error;
-				this._write(Buffer.allocUnsafe(0), 8);
+				if(data.d) {
+					this._resume();
+				} else {
+					this.session = null;
+					this.sequence = 0;
+					this._identify();
+				}
 				break;
 			}
 			case 10: {
@@ -533,16 +544,7 @@ class WebsocketShard extends EventEmitter {
 					this.send({ op: 1, d: this.sequence });
 				}, data.d.heartbeat_interval);
 				if(this.session && this.sequence) {
-					internal.replayCount = 0;
-					this.emit("debug", "Resuming");
-					this.send({
-						op: 6,
-						d: {
-							token: this.token,
-							session_id: this.session,
-							seq: this.sequence
-						}
-					});
+					this._resume();
 				} else {
 					this._identify();
 				}
