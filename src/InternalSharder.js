@@ -96,7 +96,7 @@ class InternalSharder extends EventEmitter {
 		for(const id of this.ids) {
 			let shard = this.shards.get(id);
 			if(!shard) {
-				const options = Object.assign(this.options, this.shardOptions[id] || {});
+				const options = Object.assign({}, this.options, this.shardOptions[id] || {});
 				shard = new WebsocketShard(Object.assign({
 					id: id,
 					total: this.total
