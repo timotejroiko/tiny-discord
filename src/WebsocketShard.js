@@ -103,6 +103,18 @@ class WebsocketShard extends EventEmitter {
 			});
 			req.on("error", e => {
 				this.emit("debug", "Failed to connect");
+				this.emit("debug", e);
+				if(this._internal.reconnectPromise) {
+					this._internal.reconnectPromise.offline = true;
+					this.emit("debug", "Retrying in 10 seconds");
+					const timer = setTimeout(() => {
+						this.connect();
+					}, 10000);
+					this._internal.reconnectPromise.then(() => {
+						clearTimeout(timer);
+					});
+					return;
+				}
 				reject(e);
 			});
 			req.end();
@@ -127,7 +139,12 @@ class WebsocketShard extends EventEmitter {
 	}
 	close() {
 		const internal = this._internal;
-		if(internal.reconnectPromise) { return internal.reconnectPromise.then(() => this.close()); }
+		if(internal.reconnectPromise) {
+			if(!internal.reconnectPromise.offline) {
+				return internal.reconnectPromise.then(() => this.close());
+			}
+			internal.reconnectPromise.resolve();
+		}
 		if(!this._socket) { return Promise.resolve(); }
 		let resolver;
 		const promise = new Promise(resolve => {
