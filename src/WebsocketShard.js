@@ -524,13 +524,13 @@ class WebsocketShard extends EventEmitter {
 				break;
 			}
 			case 9: {
-				this.emit("debug", "Received invalid session");
+				this.emit("debug", "Received invalid session. Waiting 1-5s before identify");
 				if(data.d) {
 					this._resume();
 				} else {
 					this.session = null;
 					this.sequence = 0;
-					this._identify();
+					setTimeout(() => this._identify(), Math.floor(Math.random() * 4000) + 1000);
 				}
 				break;
 			}
