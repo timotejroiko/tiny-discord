@@ -86,6 +86,34 @@ sharder.on("resumed", (data, id) => {
 
 &nbsp;
 
+### close
+
+Emitted when a shard disconnects due to an unresumable close code and will not reconnect. The error will contain the close code and reason if available. This event will not be emitted if the shard is manually closed with the `close()` method.
+
+|parameter|type|description|
+|-|-|-|
+|reason|Error|Reason for the disconnection|
+|id|number|The shard id|
+
+```js
+sharder.on("close", (error, id) => {
+  console.log(`shard ${id} closed due to ${error.message}`)
+})
+```
+
+&nbsp;
+
+### debug
+
+Internal debugging information for this shard.
+
+|parameter|type|description|
+|-|-|-|
+|data|string|Debug information|
+|id|number|The shard id|
+
+&nbsp;
+
 ### event
 
 Emitted when a shard receives a dispatch event.
@@ -118,33 +146,6 @@ sharder.on("MESSAGE_CREATE", (message, id) => {
   console.log(message.content)
 })
 ```
-
-&nbsp;
-
-### error
-
-Emitted when a shard disconnects or encounters any other issue. The error will contain the close code and reason if available. The shard will automatically attempt to reconnect shortly after.
-
-|parameter|type|description|
-|-|-|-|
-|reason|Error|Reason for the disconnection|
-|id|number|The shard id|
-
-```js
-sharder.on("close", (error, id) => {
-  console.log(`shard ${id} disconnected due to ${error.message}`)
-})
-```
-
-&nbsp;
-
-### debug
-
-Internal debugging information.
-
-|parameter|type|description|
-|-|-|-|
-|data|string|Debug information|
 
 &nbsp;
 

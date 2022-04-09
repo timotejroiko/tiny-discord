@@ -85,7 +85,7 @@ shard.on("event", data => {
 
 ### close
 
-Emitted when the shard disconnects with an unresumable close code and will not reconnect. The error message will contain the close code and reason if available. Unresumable close codes may be caused by issues that require fixing, therefore they should be checked and fixed before reconnecting to prevent spamming the api.
+Emitted when the shard disconnects with an unresumable close code and will not reconnect. The error message will contain the close code and reason if available. Unresumable close codes are caused by issues that require fixing, therefore they should be checked and fixed before reconnecting to prevent spamming the api.
 
 To log other types of disconnections and reconnections use the debug event.
 
@@ -95,7 +95,7 @@ To log other types of disconnections and reconnections use the debug event.
 
 ```js
 shard.on("close", async error => {
-  console.log(error);
+  console.log(error)
 });
 ```
 
@@ -177,7 +177,7 @@ await shard.close()
 
 ### .requestGuildMembers()
 
-Request guild members in a given guild. GUILD_MEMBERS_CHUNK events will be automatically collected, combined and returned once finished. The events themselves are still emitted individually through the `event` event.
+Request guild members for a given guild. `GUILD_MEMBERS_CHUNK` events will be automatically collected, combined and returned once finished. The events themselves are still emitted individually through the `event` event. This method follows the same rate limiting behavior as the [send](send) method.
 
 |parameter|type|required|default|description|
 |-|-|-|-|-|
@@ -197,7 +197,7 @@ await shard.requestGuildMembers({
 
 ### .updatePresence()
 
-Update the bot's status and/or presence in this shard.
+Update the bot's status and/or presence for this shard. This method follows the same rate limiting behavior as the [send](send) method.
 
 |parameter|type|required|default|description|
 |-|-|-|-|-|
@@ -219,7 +219,7 @@ await shard.updatePresence({
 
 ### .updateVoiceState()
 
-Update a voice connection or connect/disconnect from a voice channel. When connecting to a new voice channel, the return value can optionally include `token` and `endpoint` fields for connecting to the voice websocket (see UpdateVoiceStateOptions).
+Update a voice connection or connect/disconnect from a voice channel. When connecting to a new voice channel, the return value will optionally include `token` and `endpoint` fields for connecting to the voice websocket (see UpdateVoiceStateOptions). This method follows the same rate limiting behavior as the [send](send) method.
 
 |parameter|type|required|default|description|
 |-|-|-|-|-|
@@ -239,7 +239,7 @@ await shard.updateVoiceState({
 
 ### .send()
 
-Send a gateway command.
+Send a raw gateway command. Each shard is allowed 115 gateway commands every 60 seconds (5 are reserved for heartbeating and resuming). If the shard rate limit is reached, this method will reject with an `Error` object containing a `retry_after` property.
 
 |parameter|type|required|default|description|
 |-|-|-|-|-|
