@@ -338,10 +338,12 @@ class WebsocketShard extends EventEmitter {
 	}
 	_onError(error) {
 		this.emit("debug", error);
-		let resolver;
-		const promise = new Promise(resolve => { resolver = resolve; }).then(() => { this._internal.reconnectPromise = null; });
-		promise.resolve = resolver;
-		this._internal.reconnectPromise = promise;
+		if(!this._internal.reconnectPromise) {
+			let resolver;
+			const promise = new Promise(resolve => { resolver = resolve; }).then(() => { this._internal.reconnectPromise = null; });
+			promise.resolve = resolver;
+			this._internal.reconnectPromise = promise;
+		}
 	}
 	_onClose() {
 		const socket = this._socket;
