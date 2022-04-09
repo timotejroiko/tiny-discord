@@ -29,7 +29,7 @@ class WebsocketShard extends EventEmitter {
 		this._internal = {
 			replayCount: 0,
 			ratelimitCount: 0,
-			ratelimitInterval: null,
+			ratelimitTimer: null,
 			heartbeatInterval: null,
 			lastPacket: 0,
 			lastAck: 0,
@@ -144,9 +144,15 @@ class WebsocketShard extends EventEmitter {
 		if(internal.reconnectPromise) { return internal.reconnectPromise.then(() => this.send(data)); }
 		if(!this._socket) { return Promise.reject(new Error("Not connected")); }
 		if(!isValidRequest(data)) { return Promise.reject(new Error("Invalid request")); }
+		if(!internal.ratelimitTimer) {
+			internal.ratelimitTimer = setTimeout(() => {
+				internal.ratelimitCount = 0;
+				internal.ratelimitTimer = null;
+			}, 60000);
+		}
 		if(++internal.ratelimitCount > 115 && ![1, 2, 6].includes(data.op)) {
-			const interval = internal.ratelimitInterval;
-			const remaining = interval._idleStart + interval._repeat - (process.uptime() * 1000);
+			const timer = internal.ratelimitTimer;
+			const remaining = timer._idleStart + timer._repeat - (process.uptime() * 1000);
 			const error = new Error("Socket rate limit exceeded");
 			error.retry_after = remaining;
 			Promise.reject(error);
@@ -322,16 +328,18 @@ class WebsocketShard extends EventEmitter {
 	}
 	_onClose() {
 		const socket = this._socket;
-		const internal = this._internal;
 		if(!socket) { return; }
 		this.emit("debug", "Connection closed");
 		socket.removeListener("readable", this._onReadable);
 		socket.removeListener("error", this._onError);
 		socket.removeListener("close", this._onClose);
 		this._socket = null;
+		const internal = this._internal;
 		clearInterval(internal.heartbeatInterval);
 		clearInterval(internal.ratelimitInterval);
-		if(internal.pingPromise) { internal.pingPromise.resolve(); }
+		if(internal.pingPromise) {
+			internal.pingPromise.resolve();
+		}
 		if(internal.zlib) {
 			internal.zlib.close();
 			internal.zlib = null;
@@ -540,16 +548,20 @@ class WebsocketShard extends EventEmitter {
 				break;
 			}
 			case 10: {
-				this.emit("debug", `Received hello. Heartbeat interval = ${data.d.heartbeat_interval}ms`);
-				if(internal.reconnectPromise) { internal.reconnectPromise.resolve(); }
-				internal.lastHeartbeat = Date.now();
-				internal.ratelimitCount = 0;
-				internal.ratelimitInterval = setInterval(() => { internal.ratelimitCount = 0; }, 60000);
-				internal.heartbeatInterval = setInterval(() => {
+				const interval = data.d.heartbeat_interval;
+				const timeout = Math.floor(interval * Math.random());
+				this.emit("debug", `Received hello. Heartbeat interval = ${interval}ms. First heartbeat in ${timeout}ms`);
+				internal.heartbeatInterval = setTimeout(() => {
 					internal.lastHeartbeat = Date.now();
 					this.emit("debug", "Sending heartbeat");
 					this.send({ op: 1, d: this.sequence });
-				}, data.d.heartbeat_interval);
+					internal.heartbeatInterval = setInterval(() => {
+						internal.lastHeartbeat = Date.now();
+						this.emit("debug", "Sending heartbeat");
+						this.send({ op: 1, d: this.sequence });
+					}, interval);
+				}, timeout);
+				if(internal.reconnectPromise) { internal.reconnectPromise.resolve(); }
 				if(this.session && this.sequence) {
 					this._resume();
 				} else {
