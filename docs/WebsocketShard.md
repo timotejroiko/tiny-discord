@@ -4,7 +4,7 @@ A barebones gateway shard to receive real-time events from discord.
 
 Supports all gateway features including etf encoding and zlib compression.
 
-Automatic reconnection is done for resume requests, network issues and all resumable close codes. Unresumable close codes like invalid session must be handled by the user (see `close` event).
+Automatic reconnection is done for resume requests, network issues and all resumable close codes. Unresumable close codes like "invalid intents" must be handled by the user (see the `close` event). If your network goes completely offline, the shard will attempt to reconnect every 10 seconds forever unless interrupted by calling `close`.
 
 Shard-specific rate limits are accounted for and requests will be rejected before they are sent if hit.
 
@@ -165,7 +165,7 @@ await shard.ping("some data")
 
 ### .close()
 
-Disconnect the shard. The close event will not be fired on manual closure.
+Gracefully disconnect the shard. The close event will not be fired on manual closure.
 
 **returns:** Promise\<void\>
 

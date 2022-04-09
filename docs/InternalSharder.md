@@ -4,7 +4,7 @@ A basic implementation of an internal shard manager. This class creates and mana
 
 Supports concurrent logins (large bot sharding / max_concurrency) and shards provide hooks for externally controlled login queues (ie: process sharding / clustering / etc).
 
-Once spawned, shards will automatically attempt to resume or reconnect on network failures, invalid sessions and resumable close codes. Unresumable close codes will emit an `error` event and will not reconnect, therefore the user should listen it and fix any issues that may appear. Other types of disconnections and reconnections can be monitored via the `debug` event.
+Once spawned, shards will automatically attempt to resume or reconnect on network failures, invalid sessions and resumable close codes. Shards that close due to unresumable close codes will emit a `close` event and will not reconnect. If your network goes completely offline, the shards will attempt to reconnect every 10 seconds forever unless manually closed. Other types of disconnections and reconnections can be monitored via the `debug` event.
 
 The InternalSharder does not connect to the rest api by itself, the user must use the [RestClient](RestClient.md) or any other http client to call `/gateway/bot` and obtain the relevant gateway information before spawning shards.
 
@@ -105,7 +105,7 @@ sharder.on("close", (error, id) => {
 
 ### debug
 
-Internal debugging information for this shard.
+Internal debugging information for a given shard.
 
 |parameter|type|description|
 |-|-|-|
@@ -133,7 +133,7 @@ sharder.on("event", (data, id) => {
 
 ### EVENT_NAME
 
-Emitted when a shard receives a specific event. Event names are according to the Discord API.
+Emitted when a shard receives a specific event. Events are named according to the Discord API.
 
 |parameter|type|description|
 |-|-|-|
@@ -248,6 +248,7 @@ Get the current session ids and sequences from all shards. Use this data to resu
 **returns:** { [id], { session: string, sequence: number } }
 
 ```js
+await sharder.close()
 sharder.getCurrentSessions()
 ```
 
