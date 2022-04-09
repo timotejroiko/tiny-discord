@@ -132,7 +132,7 @@ class WebsocketShard extends EventEmitter {
 		let resolver;
 		const promise = new Promise(resolve => {
 			resolver = resolve;
-			this._write(Buffer.allocUnsafe(0), 8);
+			this._write(Buffer.from([16, 3]), 8);
 		}).then(() => {
 			internal.closePromise = null;
 		});
@@ -406,9 +406,9 @@ class WebsocketShard extends EventEmitter {
 					z._eventCount--;
 					z.removeAllListeners("error");
 					if(error) {
-						internal.lastError = error;
 						this.emit("debug", "Zlib error");
-						this._write(Buffer.allocUnsafe(0), 8);
+						this.emit("debug", error);
+						this._write(Buffer.from([16, 3]), 8);
 						return;
 					}
 					packet = this.encoding === "json" ? JSON.parse(data.toString()) : readETF(data, 1);
@@ -428,21 +428,26 @@ class WebsocketShard extends EventEmitter {
 				const code = message.length > 1 ? (message[0] << 8) + message[1] : 0;
 				const reason = message.length > 2 ? message.slice(2).toString() : "";
 				this.emit("debug", `Received close frame with code: ${code} ${reason}`);
-				const error = new Error("Websocket closed");
-				error.code = code;
-				error.reason = reason;
-				internal.lastError = error;
-				if([4001, 4007, 4009].includes(code)) {
-					this.session = null;
-					this.sequence = 0;
+				if(!internal.closePromise) {
+					if([4004, 4010, 4011, 4012, 4013, 4014].includes(code)) {
+						const error = new Error(`Websocket closed with code ${code}`);
+						error.code = code;
+						error.reason = reason;
+						internal.lastError = error;
+					} else {
+						if([4001, 4007, 4009].includes(code)) {
+							this.session = null;
+							this.sequence = 0;
+						}
+						let resolver;
+						const promise = new Promise(resolve => { resolver = resolve; }).then(() => { internal.reconnectPromise = null; });
+						promise.resolve = resolver;
+						internal.reconnectPromise = promise;
+					}
+					if(code !== 4099) {
+						this._write(message.slice(0, 2), 8); // echo close code
+					}
 				}
-				if(!internal.closePromise && ![4004, 4010, 4011, 4012, 4013, 4014].includes(code)) {
-					let resolver;
-					const promise = new Promise(resolve => { resolver = resolve; }).then(() => { internal.reconnectPromise = null; });
-					promise.resolve = resolver;
-					internal.reconnectPromise = promise;
-				}
-				this._write(Buffer.from([code >> 8, code & 255]), 8); // echo close code
 				break;
 			}
 			case 9: {
@@ -520,7 +525,7 @@ class WebsocketShard extends EventEmitter {
 			}
 			case 7: {
 				this.emit("debug", "Discord asked us to reconnect");
-				this._write(Buffer.allocUnsafe(0), 8);
+				this._write(Buffer.from([16, 3]), 8);
 				break;
 			}
 			case 9: {
