@@ -108,7 +108,12 @@ class WebsocketShard extends EventEmitter {
 					this._internal.reconnectPromise.offline = true;
 					this.emit("debug", "Retrying in 10 seconds");
 					const timer = setTimeout(() => {
-						this.connect();
+						this.connect().then(() => {
+							this._internal.reconnectPromise.offline = false;
+						}).catch(e => {
+							this._internal.lastError = e;
+							this.close();
+						});
 					}, 10000);
 					this._internal.reconnectPromise.then(() => {
 						clearTimeout(timer);
@@ -336,14 +341,18 @@ class WebsocketShard extends EventEmitter {
 			}
 		});
 	}
-	_onError(error) {
-		this.emit("debug", error);
+	_initReconnect() {
 		if(!this._internal.reconnectPromise) {
 			let resolver;
 			const promise = new Promise(resolve => { resolver = resolve; }).then(() => { this._internal.reconnectPromise = null; });
 			promise.resolve = resolver;
+			promise.offline = false;
 			this._internal.reconnectPromise = promise;
 		}
+	}
+	_onError(error) {
+		this.emit("debug", error);
+		this._initReconnect();
 	}
 	_onClose() {
 		const socket = this._socket;
@@ -355,7 +364,7 @@ class WebsocketShard extends EventEmitter {
 		this._socket = null;
 		const internal = this._internal;
 		clearInterval(internal.heartbeatInterval);
-		clearInterval(internal.ratelimitInterval);
+		clearInterval(internal.ratelimitTimer);
 		if(internal.pingPromise) {
 			internal.pingPromise.resolve();
 		}
@@ -372,15 +381,19 @@ class WebsocketShard extends EventEmitter {
 			internal.closePromise.resolve();
 			return;
 		}
+		this.emit("debug", `Shard closed due to an unrecoverable close code ${internal.lastError.code}`);
 		if(internal.lastReceived) {
 			this.emit("debug", "Last packet received before closing:");
 			this.emit("debug", internal.lastReceived);
+			internal.lastReceived = null;
 		}
 		if(internal.lastSent) {
 			this.emit("debug", "Last packet sent before closing:");
 			this.emit("debug", internal.lastSent);
+			internal.lastSent = null;
 		}
 		this.emit("close", internal.lastError);
+		internal.lastError = null;
 	}
 	_onReadable() {
 		const socket = this._socket;
@@ -435,6 +448,7 @@ class WebsocketShard extends EventEmitter {
 					if(error) {
 						this.emit("debug", "Zlib error");
 						this.emit("debug", error);
+						this._initReconnect();
 						this._write(Buffer.from([16, 3]), 8);
 						return;
 					}
@@ -466,10 +480,7 @@ class WebsocketShard extends EventEmitter {
 							this.session = null;
 							this.sequence = 0;
 						}
-						let resolver;
-						const promise = new Promise(resolve => { resolver = resolve; }).then(() => { internal.reconnectPromise = null; });
-						promise.resolve = resolver;
-						internal.reconnectPromise = promise;
+						this._initReconnect();
 					}
 					if(code !== 4099) {
 						this._write(message.slice(0, 2), 8); // echo close code
@@ -552,6 +563,7 @@ class WebsocketShard extends EventEmitter {
 			}
 			case 7: {
 				this.emit("debug", "Discord asked us to reconnect");
+				this._initReconnect();
 				this._write(Buffer.from([16, 3]), 8);
 				break;
 			}
