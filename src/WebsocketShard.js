@@ -314,9 +314,11 @@ class WebsocketShard extends EventEmitter {
 		});
 	}
 	_onError(error) {
-		if(!this._socket) { return; }
-		this._internal.lastError = error;
-		this._write(Buffer.allocUnsafe(0), 8);
+		this.emit("debug", error);
+		let resolver;
+		const promise = new Promise(resolve => { resolver = resolve; }).then(() => { this._internal.reconnectPromise = null; });
+		promise.resolve = resolver;
+		this._internal.reconnectPromise = promise;
 	}
 	_onClose() {
 		const socket = this._socket;
