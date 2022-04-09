@@ -31,7 +31,7 @@ class WebsocketShard extends EventEmitter {
 			ratelimitCount: 0,
 			ratelimitTimer: null,
 			presenceCount: 0,
-			presenceTimer: 0,
+			presenceTimer: null,
 			heartbeatInterval: null,
 			lastPacket: 0,
 			lastAck: 0,
