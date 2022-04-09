@@ -103,18 +103,8 @@ class InternalSharder extends EventEmitter {
 				}, options));
 				shard.on("ready", data => this.emit("ready", data, id));
 				shard.on("resumed", data => this.emit("resumed", data, id));
-				shard.on("debug", msg => this.emit("debug", `[Shard ${id}] ${msg}`));
-				shard.on("close", error => {
-					this.emit("error", error);
-					if(shard.session && shard.sequence) {
-						shard.connect().then(() => this.emit("connect", id)).catch(e => {
-							this.emit("error", e);
-							this._identify(id);
-						});
-					} else {
-						this._identify(id);
-					}
-				});
+				shard.on("debug", msg => this.emit("debug", msg, id));
+				shard.on("close", e => this.emit("close", e, id));
 				shard.on("event", data => {
 					this.emit("event", data, id);
 					this.emit(data.t, data.d, id);
