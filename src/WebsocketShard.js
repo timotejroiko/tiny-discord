@@ -30,6 +30,8 @@ class WebsocketShard extends EventEmitter {
 			replayCount: 0,
 			ratelimitCount: 0,
 			ratelimitTimer: null,
+			presenceCount: 0,
+			presenceTimer: 0,
 			heartbeatInterval: null,
 			lastPacket: 0,
 			lastAck: 0,
@@ -177,7 +179,7 @@ class WebsocketShard extends EventEmitter {
 			const remaining = timer._idleStart + timer._repeat - (process.uptime() * 1000);
 			const error = new Error("Socket rate limit exceeded");
 			error.retry_after = remaining;
-			Promise.reject(error);
+			return Promise.reject(error);
 		}
 		internal.lastSent = data;
 		if(this.encoding === "json") {
@@ -243,6 +245,20 @@ class WebsocketShard extends EventEmitter {
 		}
 		if(!["online", "dnd", "idle", "invisible", "offline"].includes(data.status)) {
 			return Promise.reject(new Error("Invalid status"));
+		}
+		const internal = this._internal;
+		if(!internal.presenceTimer) {
+			internal.presenceTimer = setTimeout(() => {
+				internal.presenceCount = 0;
+				internal.presenceTimer = null;
+			}, 20000);
+		}
+		if(++internal.presenceCount > 5) {
+			const timer = internal.presenceTimer;
+			const remaining = timer._idleStart + timer._repeat - (process.uptime() * 1000);
+			const error = new Error("Presence update rate limit exceeded");
+			error.retry_after = remaining;
+			return Promise.reject(error);
 		}
 		return this.send({
 			op: 3,
@@ -365,6 +381,7 @@ class WebsocketShard extends EventEmitter {
 		const internal = this._internal;
 		clearInterval(internal.heartbeatInterval);
 		clearInterval(internal.ratelimitTimer);
+		clearInterval(internal.presenceTimer);
 		if(internal.pingPromise) {
 			internal.pingPromise.resolve();
 		}
