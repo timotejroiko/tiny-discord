@@ -177,7 +177,7 @@ await shard.close()
 
 ### .requestGuildMembers()
 
-Request guild members for a given guild. `GUILD_MEMBERS_CHUNK` events will be automatically collected, combined and returned once finished. The events themselves are still emitted individually through the `event` event. This method follows the same rate limiting behavior as the [send](send) method.
+Request guild members for a given guild. `GUILD_MEMBERS_CHUNK` events will be automatically collected, combined and returned once finished. The events themselves are still emitted individually through the `event` event. This method follows the same rate limiting behavior as the [send](#send) method.
 
 |parameter|type|required|default|description|
 |-|-|-|-|-|
@@ -197,7 +197,7 @@ await shard.requestGuildMembers({
 
 ### .updatePresence()
 
-Update the bot's status and/or presence for this shard. This method follows the same rate limiting behavior as the [send](send) method.
+Update the bot's status and/or presence for this shard. This method follows the same rate limiting behavior as the [send](#send) method but has a separate limit of 5 presence updates per 20 seconds.
 
 |parameter|type|required|default|description|
 |-|-|-|-|-|
@@ -219,7 +219,7 @@ await shard.updatePresence({
 
 ### .updateVoiceState()
 
-Update a voice connection or connect/disconnect from a voice channel. When connecting to a new voice channel, the return value will optionally include `token` and `endpoint` fields for connecting to the voice websocket (see UpdateVoiceStateOptions). This method follows the same rate limiting behavior as the [send](send) method.
+Update a voice connection or connect/disconnect from a voice channel. When connecting to a new voice channel, the return value will optionally include `token` and `endpoint` fields for connecting to the voice websocket (see UpdateVoiceStateOptions). This method follows the same rate limiting behavior as the [send](#send) method.
 
 |parameter|type|required|default|description|
 |-|-|-|-|-|
