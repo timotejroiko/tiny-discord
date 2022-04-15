@@ -28,9 +28,7 @@ class WebsocketShard extends EventEmitter {
 		this._socket = null;
 		this._internal = {
 			replayCount: 0,
-			ratelimitCount: 0,
 			ratelimitTimer: null,
-			presenceCount: 0,
 			presenceTimer: null,
 			heartbeatInterval: null,
 			lastPacket: 0,
@@ -247,15 +245,15 @@ class WebsocketShard extends EventEmitter {
 			return Promise.reject(new Error("Invalid status"));
 		}
 		const internal = this._internal;
-		if(!internal.presenceTimer) {
-			internal.presenceTimer = setTimeout(() => {
-				internal.presenceCount = 0;
+		let timer = internal.presenceTimer;
+		if(!timer) {
+			timer = internal.presenceTimer = setTimeout(() => {
 				internal.presenceTimer = null;
 			}, 20000);
+			timer.count = 0;
 		}
-		if(++internal.presenceCount > 5) {
-			const timer = internal.presenceTimer;
-			const remaining = timer._idleStart + timer._repeat - (process.uptime() * 1000);
+		if(++timer.count > 5) {
+			const remaining = timer._idleStart + timer._idleTimeout - (process.uptime() * 1000);
 			const error = new Error("Presence update rate limit exceeded");
 			error.retry_after = remaining;
 			return Promise.reject(error);
