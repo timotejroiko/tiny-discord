@@ -168,15 +168,15 @@ class WebsocketShard extends EventEmitter {
 		if(internal.reconnectPromise) { return internal.reconnectPromise.then(() => this.send(data)); }
 		if(!this._socket) { return Promise.reject(new Error("Not connected")); }
 		if(!isValidRequest(data)) { return Promise.reject(new Error("Invalid request")); }
-		if(!internal.ratelimitTimer) {
-			internal.ratelimitTimer = setTimeout(() => {
-				internal.ratelimitCount = 0;
+		let timer = internal.ratelimitTimer;
+		if(!timer) {
+			timer = internal.ratelimitTimer = setTimeout(() => {
 				internal.ratelimitTimer = null;
 			}, 60000);
+			timer.count = 0;
 		}
-		if(++internal.ratelimitCount > 115 && ![1, 2, 6].includes(data.op)) {
-			const timer = internal.ratelimitTimer;
-			const remaining = timer._idleStart + timer._repeat - (process.uptime() * 1000);
+		if(++timer.count > 115 && ![1, 2, 6].includes(data.op)) {
+			const remaining = timer._idleStart + timer._idleTimeout - (process.uptime() * 1000);
 			const error = new Error("Socket rate limit exceeded");
 			error.retry_after = remaining;
 			return Promise.reject(error);
