@@ -156,8 +156,12 @@ declare module "tiny-discord" {
 		total: number
 		ids?: number[]
 		shardOptions?: Record<string | number, Omit<ShardOptions, "token" | "intents" | "id" | "total">>
-		concurrency?: number
-		identifyHook?: (id) => { time?: number, ask?: boolean }
+		session_start_limit?: {
+			max_concurrency: number
+			total: number
+			remaining: number
+			reset_after: number
+		}
 	}
 	export interface ControllerObject {
 		total: number

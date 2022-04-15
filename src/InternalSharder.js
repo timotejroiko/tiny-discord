@@ -19,7 +19,8 @@ class InternalSharder extends EventEmitter {
 			version: options.options.version,
 			encoding: options.options.encoding,
 			compression: options.options.compression,
-			url: options.options.url
+			url: options.options.url,
+			identifyHook: options.identifyHook
 		};
 		this.shardOptions = options.shardOptions && typeof options.shardOptions === "object" ? options.shardOptions : {};
 		if(Array.isArray(options.ids)) {
@@ -32,7 +33,7 @@ class InternalSharder extends EventEmitter {
 		}
 		this.shards = new Map();
 		this.controller = null;
-		if(typeof options.options.identifyHook !== "function") {
+		if(typeof this.options.identifyHook !== "function") {
 			if(!options.session_start_limit || typeof options.session_start_limit !== "object") {
 				throw new Error("Missing session_start_limit");
 			}
