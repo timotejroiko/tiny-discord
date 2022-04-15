@@ -6,18 +6,18 @@ declare module "tiny-discord" {
 	export interface Interaction {
 		id: string
 		type: number
-		data?: object
+		data?: Record<string, any>
 		guild_id?: string
 		channel_id?: string
-		member?: object
-		user?: object
+		member?: Record<string, any>
+		user?: Record<string, any>
 		token: string
 		version: number
-		message?: object
+		message?: Record<string, any>
 	}
 	export interface InteractionResponse {
 		type: number
-		data?: object
+		data?: Record<string, any>
 	}
 	export interface InteractionServerOptions {
 		key: string
@@ -42,7 +42,7 @@ declare module "tiny-discord" {
 			since: number | null
 			afk: boolean
 			status: "online" | "dnd" | "idle" | "invisible" | "offline"
-			activities: object[]
+			activities: Record<string, any>[]
 		}
 		properties?: {
 			$os: string
@@ -59,17 +59,17 @@ declare module "tiny-discord" {
 	}
 	export interface ShardEvent {
 		op: number
-		d: object
+		d: Record<string, any>
 		s: number
 		t: string
 	}
 	export interface ShardReady {
 		v: string
-		user: object
-		guilds: object[]
+		user: Record<string, any>
+		guilds: Record<string, any>[]
 		session_id: string
 		shard?: [number, number]
-		application: object
+		application: Record<string, any>
 	}
 	export interface ShardResumed {
 		replayed: number
@@ -78,7 +78,7 @@ declare module "tiny-discord" {
 		since?: number
 		afk?: boolean
 		status?: "online" | "dnd" | "idle" | "invisible" | "offline"
-		activities?: object[]
+		activities?: Record<string, any>[]
 	}
 	export interface RequestGuildMembersOptions {
 		guild_id: string
@@ -90,8 +90,8 @@ declare module "tiny-discord" {
 	}
 	export interface GuildMembersResult {
 		guild_id: string
-		members: object[]
-		presences: object[]
+		members: Record<string, any>[]
+		presences: Record<string, any>[]
 		not_found: string[]
 	}
 	export interface UpdateVoiceStateOptions {
@@ -106,7 +106,7 @@ declare module "tiny-discord" {
 		guild_id: string
 		channel_id?: string
 		user_id: string
-		member?: object
+		member?: Record<string, any>
 		session_id:	string
 		deaf: boolean
 		mute: boolean
@@ -127,7 +127,7 @@ declare module "tiny-discord" {
 		on(event: "ready", callback: (data: ShardReady) => void): this
 		on(event: "resumed", callback: (data: ShardResumed) => void): this
 		connect(): Promise<void>
-		send(data: { op: number, d: object }): Promise<void>
+		send(data: { op: number, d: Record<string, any> }): Promise<void>
 		updatePresence(presence: PresenceUpdateOptions): Promise<void>
 		requestGuildMembers(options: RequestGuildMembersOptions): Promise<GuildMembersResult>
 		updateVoiceState(state: UpdateVoiceStateOptions): Promise<VoiceStateResult>
@@ -156,6 +156,7 @@ declare module "tiny-discord" {
 		total: number
 		ids?: number[]
 		shardOptions?: Record<string | number, Omit<ShardOptions, "token" | "intents" | "id" | "total">>
+		timeout?: number
 		session_start_limit?: {
 			max_concurrency: number
 			total: number
@@ -172,7 +173,7 @@ declare module "tiny-discord" {
 	}
 	export class InternalSharder extends EventEmitter {
 		constructor(options: InternalSharderOptions)
-		on(event: DiscordEvent, callback: (data: object, id: number) => void): this
+		on(event: DiscordEvent, callback: (data: Record<string, any>, id: number) => void): this
 		on(event: "event", callback: (data: ShardEvent, id: number) => void): this
 		on(event: "debug", callback: (data: string, id: number) => void): this
 		on(event: "ready", callback: (data: ShardReady, id: number) => void): this
@@ -200,8 +201,8 @@ declare module "tiny-discord" {
 	export interface RestRequestOptions {
 		path: string
 		method: string
-		body?: object
-		headers?: object
+		body?: Record<string, any>
+		headers?: Record<string, any>
 		options?: import("https").RequestOptions
 		retries?: number
 		timeout?: number
@@ -209,8 +210,8 @@ declare module "tiny-discord" {
 	}
 	export interface RestResponse {
 		status: number
-		headers: object
-		body: object | string | Buffer
+		headers: Record<string, any>
+		body: Record<string, any> | string | Buffer
 	}
 	interface AbortablePromise<T> extends Promise<T> {
 		abort(reason?: string): void
@@ -220,9 +221,9 @@ declare module "tiny-discord" {
 		request(options: RestRequestOptions): AbortablePromise<RestResponse>
 		get(path: string, options?: RestRequestOptions): AbortablePromise<RestResponse>
 		delete(path: string, options?: RestRequestOptions): AbortablePromise<RestResponse>
-		post(path: string, body: object, options?: RestRequestOptions): AbortablePromise<RestResponse>
-		patch(path: string, body: object, options?: RestRequestOptions): AbortablePromise<RestResponse>
-		put(path: string, body?: object, options?: RestRequestOptions): AbortablePromise<RestResponse>
+		post(path: string, body: Record<string, any>, options?: RestRequestOptions): AbortablePromise<RestResponse>
+		patch(path: string, body: Record<string, any>, options?: RestRequestOptions): AbortablePromise<RestResponse>
+		put(path: string, body?: Record<string, any>, options?: RestRequestOptions): AbortablePromise<RestResponse>
 		cdn(path: string, options?: RestRequestOptions): AbortablePromise<RestResponse>
 	}
 }
