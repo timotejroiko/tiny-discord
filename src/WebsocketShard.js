@@ -398,6 +398,13 @@ class WebsocketShard extends EventEmitter {
 			internal.closePromise.resolve();
 			return;
 		}
+		if(!internal.lastError) {
+			this.emit("debug", "Received close event for unknown reasons");
+			this.emit("debug", "Reconnecting");
+			this._initReconnect();
+			this.connect();
+			return;
+		}
 		this.emit("debug", `Shard closed due to an unrecoverable close code ${internal.lastError.code}`);
 		if(internal.lastReceived) {
 			this.emit("debug", "Last packet received before closing:");
