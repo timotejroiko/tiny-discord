@@ -379,8 +379,11 @@ class WebsocketShard extends EventEmitter {
 		this._socket = null;
 		const internal = this._internal;
 		clearInterval(internal.heartbeatInterval);
-		clearInterval(internal.ratelimitTimer);
-		clearInterval(internal.presenceTimer);
+		clearTimeout(internal.ratelimitTimer);
+		clearTimeout(internal.presenceTimer);
+		internal.heartbeatInterval = null;
+		internal.ratelimitTimer = null;
+		internal.presenceTimer = null;
 		if(internal.pingPromise) {
 			internal.pingPromise.resolve();
 		}
