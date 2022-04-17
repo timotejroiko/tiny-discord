@@ -4,6 +4,7 @@ const { EventEmitter } = require("events");
 const { request } = require("https");
 const { randomBytes, createHash } = require("crypto");
 const { createInflate, inflateSync, constants: { Z_SYNC_FLUSH } } = require("zlib");
+const { setTimeout, setInterval } = require("timers");
 
 class WebsocketShard extends EventEmitter {
 	constructor(options) {
@@ -172,11 +173,11 @@ class WebsocketShard extends EventEmitter {
 				internal.ratelimitTimer = null;
 			}, 60000);
 			timer.count = 0;
+			timer.until = Date.now() + 60000;
 		}
 		if(++timer.count > 115 && ![1, 2, 6].includes(data.op)) {
-			const remaining = timer._idleStart + timer._idleTimeout - (process.uptime() * 1000);
 			const error = new Error("Socket rate limit exceeded");
-			error.retry_after = remaining;
+			error.retry_after = timer.until - Date.now();
 			return Promise.reject(error);
 		}
 		internal.lastSent = data;
@@ -251,11 +252,11 @@ class WebsocketShard extends EventEmitter {
 				internal.presenceTimer = null;
 			}, 20000);
 			timer.count = 0;
+			timer.until = Date.now() + 20000;
 		}
 		if(++timer.count > 5) {
-			const remaining = timer._idleStart + timer._idleTimeout - (process.uptime() * 1000);
 			const error = new Error("Presence update rate limit exceeded");
-			error.retry_after = remaining;
+			error.retry_after = timer.until - Date.now();
 			return Promise.reject(error);
 		}
 		return this.send({
