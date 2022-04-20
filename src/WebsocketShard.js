@@ -28,6 +28,9 @@ class WebsocketShard extends EventEmitter {
 		this.identifyHook = typeof options.identifyHook === "function" ? options.identifyHook : null;
 		this._socket = null;
 		this._internal = {
+			connectedAt: null,
+			readyAt: null,
+			identifiedAt: null,
 			replayCount: 0,
 			ratelimitTimer: null,
 			presenceTimer: null,
@@ -46,6 +49,15 @@ class WebsocketShard extends EventEmitter {
 			memberChunks: {},
 			voiceChunks: {}
 		};
+	}
+	get connectedAt() {
+		return this._internal.connectedAt;
+	}
+	get identifiedAt() {
+		return this._internal.identifiedAt;
+	}
+	get readyAt() {
+		return this._internal.readyAt;
 	}
 	get lastPing() {
 		return this._internal.lastPing;
@@ -100,6 +112,7 @@ class WebsocketShard extends EventEmitter {
 					this._internal.zlib = z;
 				}
 				this.emit("debug", "Connected");
+				this._internal.connectedAt = Date.now();
 				resolve();
 			});
 			req.on("error", e => {
@@ -384,6 +397,8 @@ class WebsocketShard extends EventEmitter {
 		internal.heartbeatInterval = null;
 		internal.ratelimitTimer = null;
 		internal.presenceTimer = null;
+		internal.connectedAt = null;
+		internal.readyAt = null;
 		if(internal.pingPromise) {
 			internal.pingPromise.resolve();
 		}
@@ -541,6 +556,7 @@ class WebsocketShard extends EventEmitter {
 				switch(t) {
 					case "READY": {
 						this.session = d.session_id;
+						internal.readyAt = internal.identifiedAt = Date.now();
 						this.emit("debug", `Ready! Session = ${d.session_id}`);
 						this.emit("ready", d);
 						return;
@@ -548,6 +564,7 @@ class WebsocketShard extends EventEmitter {
 					case "RESUMED": {
 						d.replayed = internal.replayCount;
 						internal.replayCount = null;
+						internal.readyAt = Date.now();
 						this.emit("debug", `Resumed! Session = ${this.session}, replayed = ${d.replayed}`);
 						this.emit("resumed", d);
 						return;
