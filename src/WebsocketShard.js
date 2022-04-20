@@ -64,10 +64,10 @@ class WebsocketShard extends EventEmitter {
 	}
 	get status() {
 		const internal = this._internal;
-		if(internal.reconnectPromise) { return 2; } // reconnecting
+		if(internal.reconnectPromise) { return this._internal.connectedAt ? 1 : 2; } // connected : reconnecting
 		if(internal.closePromise) { return 3; } // closing
 		if(!this._socket) { return 4; } // closed
-		return 1; // connected
+		return 0; // ready
 	}
 	connect() {
 		if(this._socket) { return Promise.resolve(); }

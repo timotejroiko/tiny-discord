@@ -336,6 +336,7 @@ If resuming is unsuccessful, the shard will clear the session data and restart w
 
 |value|description|
 |-|-|
+|0|Ready|
 |1|Connected|
 |2|Reconnecting|
 |3|Closing|
