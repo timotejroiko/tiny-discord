@@ -557,6 +557,7 @@ class WebsocketShard extends EventEmitter {
 					case "READY": {
 						this.session = d.session_id;
 						internal.readyAt = internal.identifiedAt = Date.now();
+						if(internal.reconnectPromise) { internal.reconnectPromise.resolve(); }
 						this.emit("debug", `Ready! Session = ${d.session_id}`);
 						this.emit("ready", d);
 						return;
@@ -565,6 +566,7 @@ class WebsocketShard extends EventEmitter {
 						d.replayed = internal.replayCount;
 						internal.replayCount = null;
 						internal.readyAt = Date.now();
+						if(internal.reconnectPromise) { internal.reconnectPromise.resolve(); }
 						this.emit("debug", `Resumed! Session = ${this.session}, replayed = ${d.replayed}`);
 						this.emit("resumed", d);
 						return;
@@ -635,7 +637,6 @@ class WebsocketShard extends EventEmitter {
 						this.send({ op: 1, d: this.sequence });
 					}, interval);
 				}, timeout);
-				if(internal.reconnectPromise) { internal.reconnectPromise.resolve(); }
 				if(this.session && this.sequence) {
 					this._resume();
 				} else {
