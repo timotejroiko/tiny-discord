@@ -267,9 +267,9 @@ sharder.getCurrentSessions()
 |options|[ShardOptions](WebsocketShard.md#ShardOptions)|yes|-|Options to be applied to all shards|
 |shardOptions|{&#160;[id]:&#160;[ShardOptions](WebsocketShard.md#ShardOptions)&#160;}|no|-|Shard-specific option overrides. Use this to set sessions for each shard|
 |session_start_limit|object|yes if no options.identifyHook|-|Session limit information from /gateway/bot. Ignored if options.identifyHook is set \*|
-|timeout|number|no|5500|How long to wait between each identify group. Ignored if options.identifyHook is set \*|
+|timeout|number|no|5500|How long to wait between each identify bucket. Ignored if options.identifyHook is set \*|
 
-\* A single instance of InternalSharder is able to maintain control over concurrency, login limits and identify sequence with data from the `session_start_limit` object. However if multiprocessing and clustering is used, control has to be handed over to a master process via identify hooks.
+\* A single instance of InternalSharder is able to maintain control over concurrency, login limits and identify sequences using data from the `session_start_limit` object. However if multiprocessing and clustering is used, control has to be handed over to a master process via identify hooks.
 
 &nbsp;
 
@@ -318,7 +318,7 @@ rest.request({
 
   sharder.on("error", console.log)
 
-  sharder.on("MESSAGE_CREATE", async (message, id) => {
+  sharder.on("MESSAGE_CREATE", async (message, shard_id) => {
     if(message.content.startsWith("?!hi")) {
       await rest.post(`/channels/${message.channel_id}/messages`, {
         content: "hello!"
@@ -326,7 +326,7 @@ rest.request({
     }
   })
 
-  sharder.connect()
+  sharder.connect().catch(console.error)
 
 }).catch(console.error)
 ```

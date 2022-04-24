@@ -117,7 +117,7 @@ Internal debugging information including disconnections and reconnections.
 
 ### status
 
-The shard's current connection status.
+Getter for the shard's current connection status.
 
 **type:** [ShardStatus](#ShardStatus)
 
@@ -125,9 +125,145 @@ The shard's current connection status.
 
 ### lastPing
 
-The shard's latency from the last time it was measured. Measurements are made automatically on every heartbeat or manually with the `.ping()` method.
+Getter for the shard's latency as per last measurement. Measurements are made automatically on every heartbeat or manually with the `.ping()` method.
 
 **type:** number
+
+&nbsp;
+
+### connectedAt
+
+Getter for the timestamp when the shard's current websocket connection was established.
+
+**type:** number
+
+&nbsp;
+
+### readyAt
+
+Getter for the timestamp when the shard's current connection became ready.
+
+**type:** number
+
+&nbsp;
+
+### identifiedAt
+
+Getter for the timestamp when the shard's current session was identified.
+
+**type:** number
+
+&nbsp;
+
+### token
+
+The shard's token.
+
+**type:** string
+
+&nbsp;
+
+### intents
+
+The shard's intents bitfield.
+
+**type:** number
+
+&nbsp;
+
+### id
+
+The shard's id.
+
+**type:** number
+
+&nbsp;
+
+### total
+
+The total number of shards in the group the shard's id belongs to.
+
+**type:** number
+
+&nbsp;
+
+### large_threshold
+
+The shard's large_threshold value.
+
+**type:** number
+
+&nbsp;
+
+### presence
+
+The shard's presence options.
+
+**type:** [ShardPresence](#shardpresence)
+
+&nbsp;
+
+### properties
+
+The shard's properties value.
+
+**type:** [ShardProperties](#shardproperties)
+
+&nbsp;
+
+### version
+
+The shard's preferred gateway version.
+
+**type:** number
+
+&nbsp;
+
+### encoding
+
+The encoding value used by this shard.
+
+**type:** string
+
+&nbsp;
+
+### compression
+
+The compression option used by this shard.
+
+**type:** number
+
+&nbsp;
+
+### url
+
+The gateway url used by this shard.
+
+**type:** string
+
+&nbsp;
+
+### session
+
+The shard's current session id.
+
+**type:** string
+
+&nbsp;
+
+### sequence
+
+The shard's current sequence number.
+
+**type:** number
+
+&nbsp;
+
+### identifyHook
+
+The identifyHook function if availble.
+
+**type:** function | null
 
 &nbsp;
 

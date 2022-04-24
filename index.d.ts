@@ -133,8 +133,11 @@ declare module "tiny-discord" {
 		updateVoiceState(state: UpdateVoiceStateOptions): Promise<VoiceStateResult>
 		ping(data: any): Promise<number>
 		close(): Promise<void>
-		lastPing: number
-		status: number
+		readonly lastPing: number
+		readonly status: number
+		readonly connectedAt: number
+		readonly readyAt: number
+		readonly identifiedAt: number
 		token: string
 		intents: number
 		id: number
@@ -183,12 +186,12 @@ declare module "tiny-discord" {
 		close(): Promise<void>
 		getAveragePing(): number
 		getSessions(): Record<string | number, { session: string, sequence: number }>
-		options: InternalSharderOptions
-		shardOptions: Record<string | number, ShardOptions>
+		options: InternalSharderOptions["options"]
+		shardOptions: Record<string | number, InternalSharderOptions["shardOptions"]>
 		ids: number[]
 		total: number
 		shards: Map<number, WebsocketShard>
-		controller: ControllerObject
+		controller: ControllerObject | null
 	}
 
 	export interface RestClientOptions {
