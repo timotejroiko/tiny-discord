@@ -26,7 +26,7 @@ declare module "tiny-discord" {
 	}
 	export class InteractionServer extends EventEmitter {
 		constructor(options: InteractionServerOptions)
-		on(event: "interaction", callback: (data: Interaction) => InteractionResponse): this
+		on(event: "interaction", callback: (data: Interaction) => InteractionResponse | Promise<InteractionResponse>): this
 		on(event: "error", callback: (error: Error) => void): this
 		listen(port: number): Promise<void>
 		close(): Promise<void>
