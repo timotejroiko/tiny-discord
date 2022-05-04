@@ -633,9 +633,15 @@ class WebsocketShard extends EventEmitter {
 					this.emit("debug", "Sending heartbeat");
 					this.send({ op: 1, d: this.sequence });
 					internal.heartbeatInterval = setInterval(() => {
-						internal.lastHeartbeat = Date.now();
-						this.emit("debug", "Sending heartbeat");
-						this.send({ op: 1, d: this.sequence });
+						if(internal.lastHeartbeat > internal.lastAck) {
+							this.emit("debug", "Did not receive an Ack, attempting to reconnect");
+							this._initReconnect();
+							this._write(Buffer.from([16, 3]), 8);
+						} else {
+							internal.lastHeartbeat = Date.now();
+							this.emit("debug", "Sending heartbeat");
+							this.send({ op: 1, d: this.sequence });
+						}
 					}, interval);
 				}, timeout);
 				if(this.session && this.sequence) {
