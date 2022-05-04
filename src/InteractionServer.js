@@ -146,7 +146,7 @@ class InteractionServer extends EventEmitter {
 						res.writeHead(200, { "Content-Type": "application/json" });
 						res.end(JSON.stringify(val));
 					} else {
-						this.emit("debug", "No response provided, returning 500");
+						this.emit("debug", "No valid response provided, returning 500");
 						res.writeHead(500);
 						res.end();
 					}

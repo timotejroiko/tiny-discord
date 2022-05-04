@@ -9,8 +9,8 @@ const { setTimeout, setInterval } = require("timers");
 class WebsocketShard extends EventEmitter {
 	constructor(options) {
 		if(!options || typeof options !== "object") { throw new Error("Invalid options"); }
-		if(typeof options.token !== "string") { throw new Error("Invalid token"); }
-		if(!Number.isInteger(options.intents)) { throw new Error("Invalid intents"); }
+		if(!options.token || typeof options.token !== "string") { throw new Error("Invalid token"); }
+		if(!Number.isInteger(options.intents) || options.intents < 0) { throw new Error("Invalid intents"); }
 		super();
 		this.token = options.token;
 		this.intents = options.intents;
@@ -156,7 +156,7 @@ class WebsocketShard extends EventEmitter {
 		promise.resolve = resolver;
 		return internal.pingPromise = promise;
 	}
-	close() {
+	close(invalidate = false) {
 		const internal = this._internal;
 		if(internal.reconnectPromise) {
 			if(!internal.reconnectPromise.offline) {
@@ -168,7 +168,7 @@ class WebsocketShard extends EventEmitter {
 		let resolver;
 		const promise = new Promise(resolve => {
 			resolver = resolve;
-			this._write(Buffer.from([16, 3]), 8);
+			this._write(Buffer.from(invalidate ? [3, 232] : [16, 3]), 8);
 		}).then(() => {
 			internal.closePromise = null;
 		});
@@ -195,7 +195,8 @@ class WebsocketShard extends EventEmitter {
 		}
 		internal.lastSent = data;
 		if(this.encoding === "json") {
-			this._write(Buffer.from(JSON.stringify(data)), 1);
+			const buff = Buffer.from(JSON.stringify(data));
+			this._write(buff, 1);
 		} else {
 			const etf = writeETF(data);
 			this._write(etf, 2);

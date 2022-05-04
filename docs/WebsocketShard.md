@@ -301,7 +301,11 @@ await shard.ping("some data")
 
 ### .close()
 
-Gracefully disconnect the shard. The close event will not be fired on manual closure.
+Gracefully disconnect the shard and optionally invalidate the session. If the session is invalidated, resuming will no longer work and a new identify will be required. The close event will not be fired on manual closure.
+
+|parameter|type|required|default|description|
+|-|-|-|-|-|
+|invalidate|boolean|no|false|Whether or not to invalidate the session|
 
 **returns:** Promise\<void\>
 
