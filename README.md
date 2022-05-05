@@ -49,6 +49,14 @@ The following benchmark shows how many events per second can each library proces
 
 Full benchmark can be found here: [https://github.com/timotejroiko/discord-websocket-benchmark](https://github.com/timotejroiko/discord-websocket-benchmark)
 
+## Sponsors
+
+<p align="center">Special thanks to our sponsors!</p>
+
+<p align="center">
+  <a href="https://wickbot.com"><img style="width:100px;height:100px" src="https://wickbot.com/wickking.png" alt="Wick Bot"></a>
+</p>
+
 ## LICENSE
 
-MIT
+This project is licensed under MIT, which basically means you can do anything you want with it, i only ask that you include a small copyright notice and a link to this repo in a comment in your source code.
