@@ -188,7 +188,7 @@ await client.request({
 |timeout|number|no|RestClientOptions.timeout|override default timeout for this request|
 |cdn|boolean|no|false|whether to send a request to the cdn instead of the rest api|
 
-\* If `body` is a buffer, it will be sent as is. If its an object, it will be stringified and sent as `application/json` or `multipart/formdata` depending on whether it contains a `files` field. RestClient implements `files` as an array of `file` objects defined as follows:
+\* If `body` is a buffer, it will be sent as is. If its an object, it will be stringified and sent as `application/json`. If it contains a `files` field, it will be sent as `multipart/formdata` instead. The `files` field is an array of `file` objects defined as follows:
 
 |parameter|type|required|description|
 |-|-|-|-|
@@ -204,7 +204,15 @@ await client.request({
 |-|-|-|
 |status|number|Response status code|
 |headers|object|Response headers|
-|body|object \| string \| buffer|Response body according to content-type header|
+|body|object|Response body as a body mixin \*|
+
+\* The body mixin is defined as follows:
+
+|parameter|type|description|
+|-|-|-|
+|buffer|Buffer|The body content as a Buffer|
+|text|string|The body content converted to string|
+|json|object|The body content json parsed to an object|
 
 &nbsp;
 
@@ -240,7 +248,7 @@ const rest = new RestClient({
 rest.post(`/channels/999999999999999999/messages`, {
   content: "hello world"
 }).then(result => {
-    console.log(result.status, result.headers, result.body);
+    console.log(result.status, result.headers, result.body.json);
 }).catch(console.error);
 ```
 
@@ -286,15 +294,15 @@ rest.post(`/channels/999999999999999999/messages`, {
     {
       name: "a.png",
       type: "image/png"
-      data: readFileSync("./file1.png")
+      data: readFileSync("./file1.png") // as a buffer
     },
     {
       name: "b.png",
       type: "image/png",
-      data: createReadStream("./file2.png")
+      data: createReadStream("./file2.png") // as a stream
     }
   ]
 }).then(result => {
-    console.log(result.status, result.headers, result.body);
+    console.log(result.status, result.headers, result.body.json);
 }).catch(console.error);
 ```

@@ -9,7 +9,7 @@ class RestClient {
 	 * @param {{
 	 * 		token: string,
 	 * 		version?: number,
-	 * 		type?: string,
+	 * 		type?: "bot" | "bearer",
 	 * 		retries?: number,
 	 * 		timeout?: number
 	 * }} options 
@@ -131,7 +131,7 @@ class RestClient {
 	 * 		timeout?: number,
 	 * 		cdn?: boolean
 	 * }} options
-	 * @returns {Promise<{ status: number, headers: import("http").IncomingHttpHeaders, body: Record<string, any> | string | Buffer }> & { abort: (reason: string) => void }}
+	 * @returns {Promise<{ status: number, headers: import("http").IncomingHttpHeaders, body: { buffer: Buffer, readonly text: string, readonly json: any } }> & { abort: (reason: string) => void }}
 	 */
 	request({ path, method, body, headers = {}, options = {}, retries = this.retries, timeout = this.timeout, cdn = false}, _retryCount = 0) {
 		let _aborted = false;
@@ -154,7 +154,7 @@ class RestClient {
 			_resolve(data);
 		};
 		_timer = setTimeout(() => abort(new Error("Request timed out")), timeout);
-		const promise = new Promise((resolve, reject) => {
+		/** @type {*} */ const promise = new Promise((resolve, reject) => {
 			_resolve = resolve;
 			_reject = reject;
 			_request = request({
@@ -193,26 +193,16 @@ class RestClient {
 					if(!res.complete) {
 						return abort(new Error("Received incomplete message"));
 					}
-					const type = res.headers["content-type"];
 					const body = Buffer.concat(data);
-					if(type === "application/json") {
-						try {
-							const json = JSON.parse(body.toString());
-							done({
-								status: res.statusCode,
-								headers: res.headers,
-								body: json
-							});
-						} catch(e) {
-							abort(new Error("Received malformed json response"));
+					done({
+						status: res.statusCode,
+						headers: res.headers,
+						body: {
+							buffer: body,
+							get json() { return JSON.parse(this.text); },
+							get text() { return this.buffer.toString(); }
 						}
-					} else {
-						done({
-							status: res.statusCode,
-							headers: res.headers,
-							body: type?.startsWith("text") ? body.toString() : body
-						});
-					}
+					});
 				});
 			});
 			if(body) {
@@ -258,10 +248,8 @@ class RestClient {
 				_request.end();
 			}
 		});
-		return {
-			...promise,
-			abort: reason => abort(new Error(`Aborted by user: ${reason || "no reason provided"}`))
-		};
+		promise.abort =  reason => abort(new Error(`Aborted by user: ${reason || "no reason provided"}`));
+		return promise;
 	}
 }
 
