@@ -644,6 +644,7 @@ class WebsocketShard extends EventEmitter {
 						}
 					}, interval);
 				}, timeout);
+				if(internal.reconnectPromise) { internal.reconnectPromise.resolve(); }
 				if(this.session && this.sequence) {
 					this._resume();
 				} else {
