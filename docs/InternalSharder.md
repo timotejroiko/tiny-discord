@@ -6,15 +6,17 @@ Supports concurrent logins (large bot sharding / max_concurrency) and shards pro
 
 Once spawned, shards will automatically attempt to resume or reconnect on network failures, invalid sessions and resumable close codes. Shards that close due to unresumable close codes will emit a `close` event and will not reconnect. If your network goes completely offline, the shards will attempt to reconnect every 10 seconds forever unless manually closed. Other types of disconnections and reconnections can be monitored via the `debug` event.
 
-The InternalSharder does not connect to the rest api by itself if user supplies an identify queueing mechanism, otherwise an instance of [IdentifyController](IdentifyController.md) will be automatically created to obtain the gateway information from the rest api and to queue identifies.
+The InternalSharder does not connect to the rest api by itself if user supplies a valid identify queueing mechanism, otherwise the [IdentifyController](IdentifyController.md) component from this library will be used to obtain the gateway information from the rest api and to queue identifies.
 
 &nbsp;
 
-## Class InternalSharder extends EventEmitter
+## Class InternalSharder
 
 &nbsp;
 
 ### constructor
+
+Create a new internal sharder.
 
 |parameter|type|required|default|description|
 |-|-|-|-|-|
@@ -305,7 +307,7 @@ const token = "uvuvwevwevwe.onyetenyevwe.ugwemubwem.ossas";
 const rest = new RestClient({ token });
 const controller = new IdentifyController({ token });
 
-constroller.getGateway().then(result => {
+controller.getGateway().then(result => {
 
   const total = result.shards // recommended shard count
   const url = result.url // gateway url, default url will be used if omitted

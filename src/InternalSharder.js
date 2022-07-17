@@ -26,17 +26,17 @@ class InternalSharder extends EventEmitter {
 		};
 		this.shardOverrides = typeof options.overrides === "object" && options.overrides || {};
 		/** @type {Map<number, WebsocketShard>} */ this.shards = new Map();
-		if(typeof options.constroller === "function") {
-			this.shardOptions.identifyHook = options.constroller;
+		if(typeof options.controller === "function") {
+			this.shardOptions.identifyHook = options.controller;
 			this.controller = null;
-		} else if(options.constroller instanceof IdentifyController) {
-			this.controller = options.constroller;
+		} else if(options.controller instanceof IdentifyController) {
+			this.controller = options.controller;
 			this.shardOptions.identifyHook = this.controller.requestIdentify.bind(this.controller);
 		} else {
 			this.controller = new IdentifyController({
 				token: this.shardOptions.token,
 				shards: this.total,
-				...typeof options.constroller === "object" && options.constroller
+				...typeof options.controller === "object" && options.controller
 			});
 			this.shardOptions.identifyHook = this.controller.requestIdentify.bind(this.controller);
 			/** @private */ this._ownController = true;
