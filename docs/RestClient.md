@@ -16,6 +16,8 @@ Non-200 status codes are returned normally along with headers and body when avai
 
 ### constructor
 
+Create a new rest client.
+
 |parameter|type|required|default|description|
 |-|-|-|-|-|
 |options|[RestClientOptions](#RestClientOptions)|yes|-|RestClient options|
@@ -23,6 +25,50 @@ Non-200 status codes are returned normally along with headers and body when avai
 ```js
 const client = new RestClient({ token: "abc" })
 ```
+
+&nbsp;
+
+## Properties
+
+&nbsp;
+
+### token
+
+The token used to make the requests.
+
+**type:** string
+
+&nbsp;
+
+### version
+
+The rest api version to make the requests.
+
+**type:** number
+
+&nbsp;
+
+### type
+
+The current token type.
+
+**type:** "Bot" | "Bearer"
+
+&nbsp;
+
+### retries
+
+Default number of retries before giving up a request.
+
+**type:** number
+
+&nbsp;
+
+### timeout
+
+Default amount of time to wait for a response before giving up the request.
+
+**type:** number
 
 &nbsp;
 
@@ -42,7 +88,7 @@ Make a GET request to the Discord API.
 **Returns:** [AbortablePromise](#AbortablePromise)\<[ApiResponse](#ApiResponse)\>
 
 ```js
-await client.get("/channels/9999/messages/77777")
+await client.get("/channels/9999/messages/77777").then(x => x.body.json)
 ```
 
 &nbsp;
@@ -134,7 +180,7 @@ Make a GET request to the Discord CDN.
 **Returns:** [AbortablePromise](#AbortablePromise)\<[ApiResponse](#ApiResponse)\>
 
 ```js
-await client.cdn("/attachments/55555/777777/a.png")
+await client.cdn("/attachments/55555/777777/a.png").then(x => x.body.buffer)
 ```
 
 &nbsp;
@@ -154,7 +200,7 @@ await client.request({
   path: "/channels/9999/messages",
   method: "POST",
   body: { content: "hi" }
-})
+}).then(x => x.headers["content-type"] === "application/json" ? x.body.json : x.body.text)
 ```
 
 &nbsp;
@@ -168,7 +214,7 @@ await client.request({
 |parameter|type|required|default|description|
 |-|-|-|-|-|
 |token|string|yes|-|Your bot or bearer token|
-|version|number|no|9|Api version|
+|version|number|no|10|Api version|
 |type|string|no|"bot"|Token type, "bearer" or "bot"|
 |retries|number|no|3|Max retries on network errors|
 |timeout|number|no|10000|Time to wait before aborting|
@@ -188,7 +234,7 @@ await client.request({
 |timeout|number|no|RestClientOptions.timeout|override default timeout for this request|
 |cdn|boolean|no|false|whether to send a request to the cdn instead of the rest api|
 
-\* If `body` is a buffer, it will be sent as is. If its an object, it will be stringified and sent as `application/json`. If it contains a `files` field, it will be sent as `multipart/formdata` instead. The `files` field is an array of `file` objects defined as follows:
+\* If `body` is a buffer, it will be sent as is. If its an object, it will be stringified and sent as `application/json`. If it contains a `files` field, it will be sent as `multipart/formdata` instead. The `files` should be an array of `file` objects defined as follows:
 
 |parameter|type|required|description|
 |-|-|-|-|
@@ -206,7 +252,7 @@ await client.request({
 |headers|object|Response headers|
 |body|object|Response body as a body mixin \*|
 
-\* The body mixin is defined as follows:
+\* The response body is automatically downloaded into a body mixin. Accessing the raw data stream directly is currently not supported. The body mixin is defined as follows:
 
 |parameter|type|description|
 |-|-|-|
