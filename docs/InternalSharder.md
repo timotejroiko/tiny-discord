@@ -6,7 +6,7 @@ Supports concurrent logins (large bot sharding / max_concurrency) and shards pro
 
 Once spawned, shards will automatically attempt to resume or reconnect on network failures, invalid sessions and resumable close codes. Shards that close due to unresumable close codes will emit a `close` event and will not reconnect. If your network goes completely offline, the shards will attempt to reconnect every 10 seconds forever unless manually closed. Other types of disconnections and reconnections can be monitored via the `debug` event.
 
-The InternalSharder does not connect to the rest api by itself, the user must use the [RestClient](RestClient.md) or any other http client to call `/gateway/bot` and obtain the relevant gateway information before spawning shards.
+The InternalSharder does not connect to the rest api by itself if user supplies an identify queueing mechanism, otherwise an instance of [IdentifyController](IdentifyController.md) will be automatically created to obtain the gateway information from the rest api and to queue identifies.
 
 &nbsp;
 
@@ -23,10 +23,8 @@ The InternalSharder does not connect to the rest api by itself, the user must us
 ```js
 const sharder = new InternalSharder({
   total: 5,
-  options: {
-    token: "xyz",
-    intents: 1,
-  }
+  token: "xyz",
+  intents: 1
 })
 ```
 
@@ -38,7 +36,7 @@ const sharder = new InternalSharder({
 
 ### connect
 
-Emitted when a shard connected to the gateway.
+Emitted when a shard connects to the gateway.
 
 |parameter|type|description|
 |-|-|-|
@@ -54,7 +52,7 @@ sharder.on("connect", id => {
 
 ### ready
 
-Emitted when a shard received a READY event.
+Emitted when a shard successfully identified and received a READY event.
 
 |parameter|type|description|
 |-|-|-|
@@ -71,7 +69,7 @@ sharder.on("ready", (data, id) => {
 
 ### resumed
 
-Emitted when a shard received a RESUMED event.
+Emitted when a shard successfully resumed and received a RESUMED event.
 
 |parameter|type|description|
 |-|-|-|
@@ -116,7 +114,7 @@ Internal debugging information for a given shard.
 
 ### event
 
-Emitted when a shard receives a dispatch event.
+Emitted when a shard receives a dispatch event. Dispatch events are also emitted via their own event names, see below.
 
 |parameter|type|description|
 |-|-|-|
@@ -133,7 +131,7 @@ sharder.on("event", (data, id) => {
 
 ### EVENT_NAME
 
-Emitted when a shard receives a specific event. Events are named according to the Discord API.
+Emitted when a shard receives a specific event. Events are named with `SCREAMING_SNAKE_CASE` according to the Discord API.
 
 |parameter|type|description|
 |-|-|-|
@@ -177,7 +175,7 @@ A Map of [WebsocketShard](WebsocketShard.md) instances.
 
 &nbsp;
 
-### options
+### shardOptions
 
 The current options object passed to all shards.
 
@@ -185,9 +183,9 @@ The current options object passed to all shards.
 
 &nbsp;
 
-### shardOptions
+### shardOverrides
 
-The current individual shard options that are passed to each shard.
+Shard option overrides for specific shard ids, if any.
 
 **type:** { [id], [ShardOptions](WebsocketShard.md#shardoptions) }
 
@@ -195,9 +193,9 @@ The current individual shard options that are passed to each shard.
 
 ### controller
 
-Object containing the current session limit data and other information managed by this sharder. Only available if identify hooks were not used and this sharder is the sole manager for all shards.
+The current identify queueing mechanism, either an instance of [IdentifyController](IdentifyController.md) or a function that is called every time a shard needs to identify. If an existing controller is given in the sharder options, this property will be a reference to it, otherwise a new controller will be created if neither a function nor a controller is given.
 
-**type:** [ControllerObject](#controllerobject) | null
+**type:** [IdentifyController](IdentifyController.md) | Function
 
 &nbsp;
 
@@ -207,12 +205,12 @@ Object containing the current session limit data and other information managed b
 
 ### .connect()
 
-Spawn all shards and begin connecting. If `session_id` and `sequence` are defined in [InternalSharderOptions](#InternalSharderOptions).shardOptions, a resume will be attempted, otherwise a new identify will be queued. Resolves once all shards establish a websocket connection.
+Spawn all shards and begin connecting. If `session_id` and `sequence` are defined in [InternalSharderOptions](#InternalSharderOptions).overrides, a resume will be attempted for those shard ids, otherwise a new identify will be requested. Resolves once all shards establish a websocket connection.
 
 **returns:** Promise\<void\>
 
 ```js
-sharder.connect()
+await sharder.connect()
 ```
 
 &nbsp;
@@ -243,7 +241,7 @@ sharder.getAveragePing()
 
 ### .getCurrentSessions()
 
-Get the current session ids and sequences from all shards. Use this data to resume after a process restart.
+Get the current session ids and sequences from all shards. You can use this data to resume after a restart. It is recommended to close first to prevent the sequence number from changing.
 
 **returns:** { [id], { session: string, sequence: number } }
 
@@ -262,26 +260,15 @@ sharder.getCurrentSessions()
 
 |parameter|type|required|default|description|
 |-|-|-|-|-|
+|token|string|yes|-|Your bot token|
+|intents|number|yes|-|Your bot's intents|
 |total|number|yes if no ids|ids.length|Total number of shards|
 |ids|array\<number\>|yes if no total|[0...total&#x2011;1]|Array of shard ids managed by this sharder|
-|options|[ShardOptions](WebsocketShard.md#ShardOptions)|yes|-|Options to be applied to all shards|
-|shardOptions|{&#160;[id]:&#160;[ShardOptions](WebsocketShard.md#ShardOptions)&#160;}|no|-|Shard-specific option overrides. Use this to set sessions for each shard|
-|session_start_limit|object|yes if no options.identifyHook|-|Session limit information from /gateway/bot. Ignored if options.identifyHook is set \*|
-|timeout|number|no|5500|How long to wait between each identify bucket. Ignored if options.identifyHook is set \*|
+|options|[ShardOptions](WebsocketShard.md#ShardOptions)|no|-|Additional options to be applied to all shards except token, intents and sessions|
+|overrides|{&#160;[id]:&#160;[ShardOptions](WebsocketShard.md#ShardOptions)&#160;}|no|-|Shard-specific option overrides. Use this to set sessions for each shard|
+|controller|[IdentifyController](IdentifyController.md) | [identifyHook](WebsocketShard.md#ShardOptions)|no|-|The identify queueing mechanism \*|
 
-\* A single instance of InternalSharder is able to maintain control over concurrency, login limits and identify sequences using data from the `session_start_limit` object. However if multiprocessing and clustering is used, control has to be handed over to a master process via identify hooks.
-
-&nbsp;
-
-### ControllerObject
-
-|key|type|description|
-|-|-|-|
-|total|number|Total number of daily logins available|
-|remaining|number|Remaining number of daily logins available|
-|resetTimestamp|number|Timestamp at which the daily login limit will be reset|
-|concurrency|number|The current max_concurrency value being used for the login queue|
-|timeout|number|The delay between each identify attempt|
+\* If neither an existing controller nor an identifyHook function is given, a new IdentifyController will be created to manage this sharder.
 
 &nbsp;
 
@@ -289,31 +276,46 @@ sharder.getCurrentSessions()
 
 &nbsp;
 
-Typical client-like usage:
+Simple barebones event listener setup with a specific shard count:
 
 ```js
-const { InternalSharder, RestClient } = require("tiny-discord")
+const { InternalSharder } = require("tiny-discord")
+const token = "uvuvwevwevwe.onyetenyevwe.ugwemubwem.ossas";
+
+const sharder = new InternalSharder({
+  token,
+  intents: 2,
+  total: 32, // 32 shards
+  options: { url }
+})
+
+sharder.on("MESSAGE_CREATE", async (message, shard_id) => {
+  console.log(shad_id, message)
+})
+
+sharder.connect()
+```
+
+Typical client-like usage with recommended shard count:
+
+```js
+const { InternalSharder, RestClient, IdentifyController } = require("tiny-discord")
 const token = "uvuvwevwevwe.onyetenyevwe.ugwemubwem.ossas";
 
 const rest = new RestClient({ token });
+const controller = new IdentifyController({ token });
 
-rest.request({
-  path: `/gateway/bot`,
-  method: "GET"
-}).then(result => {
+constroller.getGateway().then(result => {
 
-  const total = result.body.shards // recommended shard count
-  const url = result.body.url // gateway url, default url will be used if omitted
-  const session_start_limit = result.body.session_start_limit; // session info including max_concurrency and remaining daily logins
+  const total = result.shards // recommended shard count
+  const url = result.url // gateway url, default url will be used if omitted
 
   const sharder = new InternalSharder({
     total,
-    session_start_limit,
-    options: {
-      token,
-      intents: 2,
-      url
-    }
+    token,
+    intents: 2,
+    options: { url },
+    controller
   })
 
   sharder.on("error", console.log)
