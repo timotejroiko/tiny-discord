@@ -17,7 +17,7 @@ class RestClient {
 	constructor(options) {
 		if(typeof options.token !== "string") { throw new Error("Invalid token"); }
 		this.token = options.token;
-		this.version = Number(options.version) || 9;
+		this.version = Number(options.version) || 10;
 		this.type = typeof options.type === "string" && options.type.toLowerCase() === "bearer" ? "Bearer" : "Bot";
 		this.retries = Number(options.retries) || 3;
 		this.timeout = Number(options.timeout) || 10000;
@@ -231,6 +231,7 @@ class RestClient {
 							const json = JSON.stringify(body.payload_json);
 							_request.write(`\r\n--${boundary}\r\nContent-Disposition: form-data; name="payload_json"\r\nContent-Type: application/json\r\n\r\n${json}`);
 						} else {
+							delete body.files;
 							for(const entry of Object.entries(body)) {
 								_request.write(`\r\n--${boundary}\r\nContent-Disposition: form-data; name="${entry[0]}"\r\n\r\n${entry[1].toString()}`);
 							}
