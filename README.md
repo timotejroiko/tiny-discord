@@ -11,11 +11,12 @@ Tests and contributions are welcome.
 - [x] Rest Client
 - [x] Interaction Server
 - [x] Shard Websocket
+- [x] Identify Controller
 - [ ] Voice Websocket?
-- [ ] Basic Caching (wip)
+- [ ] Basic Caching?
 - [x] Basic types
 - [x] Internal Sharder
-- [ ] External Sharder?
+- [ ] External Sharder
 - [ ] Ratelimit Manager?
 - [x] Docs
 - [x] Benchmarks
@@ -25,16 +26,16 @@ Not everyting in this list is guaranteed to be done. items in questionmarks are 
 ## Docs
 
 - Base components (standalone classes with zero dependencies)
-  - [RestClient](https://github.com/timotejroiko/tiny-discord/blob/master/docs/RestClient.md)
-  - [WebsocketShard](https://github.com/timotejroiko/tiny-discord/blob/master/docs/WebsocketShard.md)
-  - [InteractionServer](https://github.com/timotejroiko/tiny-discord/blob/master/docs/InteractionServer.md)
-  - Cache (wip)
-- Intermediate components (higher level classes built on top of one or more base components)
-  - [InternalSharder](https://github.com/timotejroiko/tiny-discord/blob/master/docs/InternalSharder.md)
+  - [RestClient](https://github.com/timotejroiko/tiny-discord/blob/master/docs/RestClient.md) - An http client for interacting with the discord rest API.
+  - [WebsocketShard](https://github.com/timotejroiko/tiny-discord/blob/master/docs/WebsocketShard.md) - A websocket client to receive real-time events from discord.
+  - [InteractionServer](https://github.com/timotejroiko/tiny-discord/blob/master/docs/InteractionServer.md) - A webhook server for receiving Discord interactions.
+- Utility components (higher level classes built on top of one or more base components)
+  - [InternalSharder](https://github.com/timotejroiko/tiny-discord/blob/master/docs/InternalSharder.md) - A utility class to manage multiple websocket shards
+  - [IdentifyController](https://github.com/timotejroiko/tiny-discord/blob/master/docs/IdentifyController.md) - A utility class to manage gateway identifies
 
 ## Benchmarks
 
-The following benchmark shows how many events per second can each library process in a single shard. It demonstrates the performance advantages of using the raw discord data directly as opposed to transforming it into complex classes and structures.
+The following benchmark shows how many events per second can each library process with a single shard. It demonstrates the performance advantages of using the raw discord data directly as opposed to transforming it into complex classes and structures.
 
 |test/lib|discord.js|eris|detritus|tiny-discord|
 |-|-|-|-|-|
