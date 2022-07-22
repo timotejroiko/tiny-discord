@@ -7,13 +7,15 @@
     "url": "https://github.com/timotejroiko/tiny-discord"
   },
   "main": "index.js",
+  "types": "types/index.d.ts",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "tsc -p ./",
+    "types": "tsc -p ./ --noEmit false --emitDeclarationOnly true"
   },
   "author": "Timotej Valentin Rojko",
   "license": "MIT",
   "devDependencies": {
-    "@types/node": "^17.0.21",
-    "eslint": "^8.9.0"
+    "@types/node": "^18.0.0",
+    "eslint": "^8.18.0"
   }
 }

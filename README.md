@@ -55,7 +55,9 @@ Full benchmark can be found here: [https://github.com/timotejroiko/discord-webso
 <p align="center">Special thanks to our sponsors!</p>
 
 <p align="center">
-  <a href="https://wickbot.com"><img style="width:100px;height:100px" src="https://wickbot.com/wickking.png" alt="Wick Bot"></a>
+  <a href="https://wickbot.com">
+    <img src="https://images.weserv.nl/?url=https://styles.redditmedia.com/t5_5c2f5p/styles/communityIcon_9v851jopzkz71.png&h=100&w=100&fit=cover&mask=circle&maxage=7d" alt="Wick Bot">
+  </a>
 </p>
 
 ## LICENSE

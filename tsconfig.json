@@ -1,0 +1,20 @@
+{
+	"compilerOptions": {
+		"lib": ["es2020"],
+		"target": "es2020",
+		"module": "es2020",
+		"moduleResolution": "node",
+		"resolveJsonModule": true,
+		"allowJs": true,
+		"checkJs": true,
+		"strict": true,
+		"noUnusedLocals": true,
+		"noUnusedParameters": true,
+		"noImplicitReturns": true,
+		"removeComments": true,
+		"declaration": true,
+		"declarationDir": "types",
+		"noEmit": true
+	},
+	"include": ["index.js"]
+}
