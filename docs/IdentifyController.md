@@ -66,7 +66,7 @@ The minimum amount of time between each identify bucket.
 
 ### refreshDelay
 
-The minimum amount of time between each gateway refresh.
+The minimum amount of time between each gateway refresh, aka how long the gateway response is cached.
 
 **type:** number
 
@@ -82,7 +82,7 @@ Timestamp for the last gateway refresh.
 
 ### sessions
 
-The session login limit data from the gateway.
+Getter for the current session login limits.
 
 **type:** [SessionLimitsData](#sessionlimitsdata)
 
@@ -108,21 +108,25 @@ Getter for the next time the gateway session data will be re-fetched according t
 
 &nbsp;
 
-### .getGateway()
+### .fetchGateway(force)
 
-Obtain the gateway data to create websocket connections. This method automatically refreshes the gateway session data whenever the refresh or reset timers are hit.
+Fetch the gateway endpoint. The gateway response will remain cached until either a refresh or a reset timer is hit. Optionally bypass the cache and force fetch the gateway.
 
-**Returns:** Promise\<this\>
+|parameter|type|required|default|description|
+|-|-|-|-|-|
+|force|boolean|no|false|Whether to bypass the cache and force refresh the gateway data|
+
+**Returns:** Promise\<[GatewayData](#gatewaydata)\>
 
 ```js
-const { url, shards, sessions } = await controller.getGateway()
+const data = await controller.fetchGateway()
 ```
 
 &nbsp;
 
 ### .requestIdentify(id, wait)
 
-Request permission to identify a specific shard id. If permission is granted, the shard can identify immediately, otherwise it means another shard in the same concurrency bucket already identified within the last `shardDelay` seconds. Due to possible network latency and delays between a permission grant and a successful identify, it is recommended to keep `shardDelay` a little above 5 seconds. This method automatically refreshes the gateway session data whenever the refresh or reset timers are hit. This method is also compatible with the `identifyHook` signature from this library's `WebsocketShard` class.
+Request permission to identify a specific shard id. If permission is granted, the shard can identify immediately, otherwise it means another shard in the same concurrency bucket already identified within the last `shardDelay` seconds. Due to possible network latency and delays between a permission grant and a successful identify, it is recommended to keep `shardDelay` a little above 5 seconds. This method automatically refreshes the gateway session data whenever the refresh or reset timers are hit. This method is designed to be compatible with the `identifyHook` signature from this library's `WebsocketShard` class.
 
 |parameter|type|required|default|description|
 |-|-|-|-|-|
@@ -139,7 +143,7 @@ const { canIdentify, retryAfter } = await controller.requestIdentify(4);
 
 ### .refreshSessionLimits(session?)
 
-Manually refresh the gateway session data if needed. An existing manually fetched session object will be used if given, otherwise a new session object will be fetched from the gateway. Other methods implicitly call this method internally whenever the refresh or reset timers are hit.
+Manually refresh the gateway session data if needed. An existing manually fetched session object will be used if given, otherwise a new session object will be force fetched from the gateway.
 
 |parameter|type|required|default|description|
 |-|-|-|-|-|
@@ -149,18 +153,6 @@ Manually refresh the gateway session data if needed. An existing manually fetche
 
 ```js
 await controller.refreshSessionLimits();
-```
-
-&nbsp;
-
-### .fetchGateway()
-
-Manually fetch the gateway endpoint. Other methods implicitly call this method internally whenever the refresh or reset timers are hit.
-
-**Returns:** Promise\<[GatewayData](#gatewaydata)\>
-
-```js
-const data = await controller.fetchGateway()
 ```
 
 &nbsp;
@@ -176,7 +168,7 @@ const data = await controller.fetchGateway()
 |token|string|yes|-|Your bot's token|
 |shards|number|no|0|Total number of shards. If 0 or omitted, the recommended shard number given by Discord will be used|
 |shardDelay|number|no|5500|Minimum amount of time between each identify bucket in milliseconds (should never be lower than 5000)|
-|refreshDelay|number|no|600000|Minimum amount of time between each gateway refresh in milliseconds \*|
+|refreshDelay|number|no|600000|Minimum amount of time between each gateway fetch in milliseconds \*|
 |rest|[RestClient](RestClient.md) \| [RestClientOptions](RestClient.md#RestClientOptions)|no|-|An instance of `RestClient` or an options object to create a new one \*\*|
 
 \* For most use cases fetching the gateway too often is a waste of resources as the session parameters are unlikely to change. But depending on your situation you might want to fetch it more often to keep it up-to-date. For example setting the refreshDelay to match the shardDelay will ensure the gateway will be always be re-fetched on every identify like most other libraries do.
@@ -227,7 +219,7 @@ const token = "yourbottokenhaha";
 
 const controller = new IdentifyController({ token });
 
-controller.getGateway().then(data => {
+controller.fetchGateway().then(data => {
     const { url, shards } = data;
     for(let i = 0; i < shards; i++) {
         const shard = new WebsocketShard({
@@ -254,7 +246,7 @@ const token = "yourbottokenhaha";
 const rest = new RestClient({ token });
 const controller = new IdentifyController({ token, rest, shards: 16 });
 
-controller.getGateway().then(data => {
+controller.fetchGateway().then(data => {
     const { url, shards } = data;
     const manager = new InternalSharder({
         token,

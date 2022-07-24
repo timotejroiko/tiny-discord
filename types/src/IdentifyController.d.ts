@@ -7,16 +7,16 @@ declare class IdentifyController {
     shardDelay: number;
     refreshDelay: number;
     lastRefresh: number;
-    sessions: SessionLimitsData;
     private _resetPromise;
     private _fetchPromise;
     private _bucket;
+    private _gateway;
+    get sessions(): SessionLimitsData;
     get nextReset(): number;
     get nextRefresh(): number;
-    getGateway(): Promise<this>;
     requestIdentify(id: number, wait?: boolean): Promise<RequestIdentifyResult>;
     refreshSessionLimits(session?: SessionLimitsData | undefined): Promise<void>;
-    fetchGateway(): Promise<GatewayData>;
+    fetchGateway(force?: boolean): Promise<GatewayData>;
 }
 declare namespace IdentifyController {
     export { IdentifyControllerOptions, SessionLimitsData, GatewayData, RequestIdentifyResult };

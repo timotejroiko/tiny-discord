@@ -307,7 +307,7 @@ const token = "uvuvwevwevwe.onyetenyevwe.ugwemubwem.ossas";
 const rest = new RestClient({ token });
 const controller = new IdentifyController({ token });
 
-controller.getGateway().then(result => {
+controller.fetchGateway().then(result => {
 
   const total = result.shards // recommended shard count
   const url = result.url // gateway url, default url will be used if omitted

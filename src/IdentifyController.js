@@ -20,10 +20,17 @@ class IdentifyController {
 		this.shardDelay = shardDelay;
 		this.refreshDelay = refreshDelay;
 		this.lastRefresh = 0;
-		/** @type {SessionLimitsData} */ this.sessions;
 		/** @private */ this._resetPromise = null;
 		/** @private */ this._fetchPromise = null;
 		/** @private */ this._bucket = [0];
+		/** @private */ this._gateway = null;
+	}
+
+	/**
+	 * @type {SessionLimitsData}
+	 */
+	get sessions() {
+		return this._gateway?.session_start_limit;
 	}
 
 	get nextReset() {
@@ -43,25 +50,6 @@ class IdentifyController {
 		return next;
 	}
 
-	async getGateway() {
-		if(!this.sessions) {
-			const session = await this.fetchGateway();
-			if(!this.sessions) {
-				if(!Number.isInteger(this.shards) || this.shards === 0) {
-					this.shards = session.shards;
-				}
-				this.url = session.url;
-				this.sessions = session.session_start_limit;
-				this._bucket = Array(session.session_start_limit.max_concurrency).fill(0);
-			}
-		}
-		const now = Date.now();
-		if(now > this.nextRefresh) {
-			await this.refreshSessionLimits();
-		}
-		return this;
-	}
-
 	/**
 	 * 
 	 * @param {number} id 
@@ -70,8 +58,8 @@ class IdentifyController {
 	 */
 	async requestIdentify(id, wait = false) {
 		if(!Number.isInteger(id) || id < 0 || id > this.shards) { throw new Error(`invalid shard id: ${id}`); }
-		const gateway = await this.getGateway();
-		const sessions = gateway.sessions;
+		const gateway = await this.fetchGateway();
+		const sessions = gateway.session_start_limit;
 		if(sessions.remaining <= 0) {
 			const retry = this.nextReset - Date.now();
 			if(!this._resetPromise) {
@@ -117,33 +105,38 @@ class IdentifyController {
 	async refreshSessionLimits(session) {
 		if(session) {
 			if(typeof session !== "object" || !Object.values(session).every(Number.isInteger)) { throw new Error("invalid session object"); }
-			this.sessions = session;
-			this.lastRefresh = Date.now();
+			this._gateway.session_start_limit = session;
 		} else {
-			const prev = this.lastRefresh;
-			const gateway = await this.fetchGateway();
-			if(this.lastRefresh === prev) {
-				if(this.sessions.max_concurrency !== gateway.session_start_limit.max_concurrency) {
-					this._bucket = Array(gateway.session_start_limit.max_concurrency).fill(0);
-				}
-				this.sessions = gateway.session_start_limit;
-				this.lastRefresh = Date.now();
-			}
+			await this.fetchGateway(true);
 		}
+		this.lastRefresh = Date.now();
 	}
 
 	/**
 	 * 
 	 * @returns {Promise<GatewayData>}
 	 */
-	fetchGateway() {
+	fetchGateway(force = false) {
 		if(this._fetchPromise) {
 			return this._fetchPromise;
+		}
+		if(Date.now() < this.nextRefresh && !force && this._gateway) {
+			return this._gateway;
 		}
 		this._fetchPromise = this.rest.get("/gateway/bot").then(result => {
 			this._fetchPromise = null;
 			if(result.status === 200 && result.body.json.session_start_limit) {
-				return result.body.json;
+				const json = result.body.json;
+				if(!this._gateway) {
+					if(!Number.isInteger(this.shards) || this.shards === 0) {
+						this.shards = json.shards;
+					}
+					this.url = json.url;
+					this._bucket = Array(json.session_start_limit.max_concurrency).fill(0);
+				} else if(this.sessions.max_concurrency !== json.session_start_limit.max_concurrency) {
+					this._bucket = Array(json.session_start_limit.max_concurrency).fill(0);
+				}
+				return this._gateway = json;
 			}
 			throw new Error(`status: ${result.status}, body: ${result.body.text}`);
 		});
