@@ -1,3 +1,4 @@
+/* eslint-disable no-extra-parens */
 "use strict";
 
 const { EventEmitter } = require("events");
@@ -7,6 +8,10 @@ const { createInflate, inflateSync, constants: { Z_SYNC_FLUSH } } = require("zli
 const { setTimeout, setInterval } = require("timers");
 
 class WebsocketShard extends EventEmitter {
+	/**
+	 * 
+	 * @param {WebsocketShardOptions} options 
+	 */
 	constructor(options) {
 		if(!options || typeof options !== "object") { throw new Error("Invalid options"); }
 		if(!options.token || typeof options.token !== "string") { throw new Error("Invalid token"); }
@@ -18,182 +23,172 @@ class WebsocketShard extends EventEmitter {
 		this.total = Number(options.total) || this.id + 1;
 		this.large_threshold = Number(options.large_threshold) || void 0;
 		this.presence = isValidPresence(options.presence) ? options.presence : void 0;
-		this.properties = isValidProperties(options.properties) ? options.properties : { $os: process.platform, $browser: "tiny-discord", $device: "tiny-discord" };
-		this.version = Number(options.version) || 9;
+		this.properties = isValidProperties(options.properties) ? options.properties : { os: process.platform, browser: "tiny-discord", device: "tiny-discord" };
+		this.version = Number(options.version) || 10;
 		this.encoding = typeof options.encoding === "string" && options.encoding.toLowerCase() === "etf" ? "etf" : "json";
-		this.compression = [0, 1, 2].includes(options.compression = Number(options.compression)) ? options.compression : 0;
+		this.compression = [0, 1, 2].includes(options.compression = /** @type {0 | 1 | 2} */ (Number(options.compression))) ? options.compression : 0;
 		this.url = typeof options.url === "string" ? options.url.includes("://") ? options.url.split("://")[1] : options.url : "gateway.discord.gg";
-		this.session = typeof options.session === "string" ? options.session : null;
-		this.sequence = Number(options.sequence) || 0;
+		this.session = "session" in options && typeof options.session === "string" ? options.session : null;
+		this.sequence = "sequence" in options && Number(options.sequence) || 0;
 		this.identifyHook = typeof options.identifyHook === "function" ? options.identifyHook : null;
-		this._socket = null;
-		this._internal = {
-			connectedAt: null,
-			readyAt: null,
-			identifiedAt: null,
-			replayCount: 0,
-			ratelimitTimer: null,
-			presenceTimer: null,
-			heartbeatInterval: null,
+
+		/** @private */ this._timestamps = {
 			lastPacket: 0,
 			lastAck: 0,
 			lastHeartbeat: 0,
-			lastPing: 999,
-			lastReceived: null,
-			lastSent: null,
-			lastError: null,
-			closePromise: null,
-			pingPromise: null,
-			reconnectPromise: null,
-			zlib: null,
-			memberChunks: {},
-			voiceChunks: {}
+			connectedAt: 0,
+			readyAt: 0,
+			identifiedAt: 0
 		};
+
+		/** @private */ this._timers = {
+			/** @type {(NodeJS.Timeout & { count: number, until: number })?} */ ratelimit: null,
+			/** @type {(NodeJS.Timeout & { count: number, until: number })?} */ presencelimit: null,
+			/** @type {(NodeJS.Timeout | NodeJS.Timer)?} */ heartbeat: null,
+			/** @type {NodeJS.Timeout?} */ close: null,
+			/** @type {NodeJS.Timeout?} */ offline: null
+		};
+
+		/** @private */ this._promises = {
+			/** @type {(Promise<number> & { resolve: () => void })?} */ ping: null,
+			/** @type {(Promise<void> & { resolve: () => void })?} */ close: null,
+			/** @type {(Promise<void> & { resolve: () => void })?} */ ready: null,
+			/** @type {(Promise<void> & { busy: boolean, resolve: () => void })?} */ connect: null
+		};
+
+		/** @private */ this._last = {
+			/** @type {number?} */ ping: null,
+			/** @type {number?} */ replayed: null,
+			/** @type {(Error & { code: number, reason?: string })?} */ error: null
+		};
+
+		/** @private @type {Record<string, { resolve: () => void, received: number, members: any[], presences: any[], not_found: any[] }>} */ this._memberChunks = {};
+		/** @private @type {Record<string, { resolve: () => void, state: Record<string, any>?, server: Record<string, any>? }>} */ this._voiceChunks = {};
+		/** @private @type {(import("zlib").Inflate & { _c: Function, _h: Function, _hc: Function, _v: () => void })?} */ this._zlib = null;
+		/** @private @type {import("net").Socket?} */ this._socket = null;
+
+		/**
+		 * @type {(
+		 * 		((event: "event", callback: (data: ShardEvent) => void) => this) &
+		 * 		((event: "debug", callback: (data: string) => void) => this) &
+		 * 		((event: "close", callback: (data?: Error) => void) => this) &
+		 * 		((event: "ready", callback: (data: ShardReady) => void) => this) &
+		 * 		((event: "resumed", callback: (data: ShardResumed) => void) => this)
+		 * )}
+		 */
+		this.on;
 	}
 	get connectedAt() {
-		return this._internal.connectedAt;
+		return this._timestamps.connectedAt;
 	}
 	get identifiedAt() {
-		return this._internal.identifiedAt;
+		return this._timestamps.identifiedAt;
 	}
 	get readyAt() {
-		return this._internal.readyAt;
+		return this._timestamps.readyAt;
 	}
 	get lastPing() {
-		return this._internal.lastPing;
+		return this._last.ping || 999;
 	}
+
+	/**
+	 * 
+	 * @returns {keyof StatusCodes}
+	 */
 	get status() {
-		const internal = this._internal;
-		if(internal.reconnectPromise) { return this._internal.connectedAt ? 1 : 2; } // connected : reconnecting
-		if(internal.closePromise) { return 3; } // closing
-		if(!this._socket) { return 4; } // closed
+		if(this._promises.connect) { return 1; } // connecting
+		if(this._promises.ready) { return 2; } // connected
+		if(this._promises.close) { return 3; } // closing
+		if(this._timers.offline) { return 4; } // offline
+		if(!this._socket) { return 5; } // closed
 		return 0; // ready
 	}
+
+	/**
+	 * 
+	 * @returns {Promise<void>}
+	 */
 	connect() {
 		if(this._socket) { return Promise.resolve(); }
-		const key = randomBytes(16).toString("base64");
-		const compression = this.compression === 2 ? "&compress=zlib-stream" : "";
-		const path = `/?v=${this.version}&encoding=${this.encoding}${compression}`;
-		this.emit("debug", "Creating connection");
-		const req = request({
-			hostname: this.url,
-			path: path,
-			headers: {
-				"Connection": "Upgrade",
-				"Upgrade": "websocket",
-				"Sec-WebSocket-Key": key,
-				"Sec-WebSocket-Version": "13",
-			}
-		});
-		return new Promise((resolve, reject) => {
-			req.on("upgrade", (res, socket) => {
-				const hash = createHash("sha1").update(key + "258EAFA5-E914-47DA-95CA-C5AB0DC85B11").digest("base64");
-				const accept = res.headers["sec-websocket-accept"];
-				if(hash !== accept) {
-					socket.end(() => {
-						this.emit("debug", "Failed websocket-key validation");
-						const error = new Error("Invalid Sec-Websocket-Accept");
-						error.expected = hash;
-						error.received = accept;
-						reject(error);
-					});
-					return;
-				}
-				socket.on("error", this._onError.bind(this));
-				socket.on("close", this._onClose.bind(this));
-				socket.on("readable", this._onReadable.bind(this));
-				this._socket = socket;
-				if(this.compression === 2) {
-					const z = createInflate();
-					z._c = z.close;
-					z._h = z._handle;
-					z._hc = z._handle.close;
-					z._v = () => void 0;
-					this._internal.zlib = z;
-				}
-				this.emit("debug", "Connected");
-				this._internal.connectedAt = Date.now();
-				resolve();
-			});
-			req.on("error", e => {
-				this.emit("debug", "Failed to connect");
-				this.emit("debug", e);
-				if(this._internal.reconnectPromise) {
-					this._internal.reconnectPromise.offline = true;
-					this.emit("debug", "Retrying in 10 seconds");
-					const timer = setTimeout(() => {
-						this.connect().then(() => {
-							this._internal.reconnectPromise.offline = false;
-						}).catch(e => {
-							this._internal.lastError = e;
-							this.close();
-						});
-					}, 10000);
-					this._internal.reconnectPromise.then(() => {
-						clearTimeout(timer);
-					});
-					return;
-				}
-				reject(e);
-			});
-			req.end();
-		});
+		if(this._promises.connect) { return this._promises.connect; }
+		if(this._timers.offline) {
+			clearTimeout(this._timers.offline);
+		}
+		this._initConnect();
+		return this._connect();
 	}
+
+	/**
+	 * 
+	 * @param {*} data 
+	 * @returns {Promise<number>}
+	 */
 	ping(data) {
-		const internal = this._internal;
-		if(internal.reconnectPromise) { return internal.reconnectPromise.then(() => this.ping(data)); }
+		const promises = this._promises;
+		if(promises.connect) { return promises.connect.then(() => this.ping(data)); }
 		if(!this._socket) { return Promise.reject(new Error("Not connected")); }
-		if(internal.pingPromise) { return internal.pingPromise; }
+		if(promises.ping) { return promises.ping; }
 		const time = Date.now();
-		let resolver;
-		const promise = new Promise(resolve => {
+		/** @type {*} */ let resolver;
+		const promise = /** @type {NonNullable<typeof this._promises.ping>} */ (new Promise(resolve => {
 			resolver = resolve;
 			this._write(data ? Buffer.from(JSON.stringify(data)) : Buffer.allocUnsafe(0), 9);
 		}).then(() => {
-			internal.pingPromise = null;
-			return internal.lastPing = Date.now() - time;
-		});
+			promises.ping = null;
+			return this._last.ping = Date.now() - time;
+		}));
 		promise.resolve = resolver;
-		return internal.pingPromise = promise;
+		return promises.ping = promise;
 	}
+
+	/**
+	 * 
+	 * @param {boolean} invalidate 
+	 * @returns {Promise<void>}
+	 */
 	close(invalidate = false) {
-		const internal = this._internal;
-		if(internal.reconnectPromise) {
-			if(!internal.reconnectPromise.offline) {
-				return internal.reconnectPromise.then(() => this.close());
-			}
-			internal.reconnectPromise.resolve();
+		const promises = this._promises;
+		if(promises.connect) {
+			return promises.connect.then(() => this.close());
+		}
+		if(this._timers.offline) {
+			clearTimeout(this._timers.offline);
 		}
 		if(!this._socket) { return Promise.resolve(); }
-		let resolver;
-		const promise = new Promise(resolve => {
+		/** @type {*} */ let resolver;
+		const promise = /** @type {NonNullable<typeof this._promises.close>} */ (new Promise(resolve => {
 			resolver = resolve;
-			this._write(Buffer.from(invalidate ? [3, 232] : [16, 3]), 8);
+			this._initClose(invalidate ? 1000 : 4099);
 		}).then(() => {
-			internal.closePromise = null;
-		});
+			promises.close = null;
+		}));
 		promise.resolve = resolver;
-		return internal.closePromise = promise;
+		return promises.close = promise;
 	}
+
+	/**
+	 * 
+	 * @param {GatewayCommand} data 
+	 * @returns {Promise<void>}
+	 */
 	send(data) {
-		const internal = this._internal;
-		if(internal.reconnectPromise) { return internal.reconnectPromise.then(() => this.send(data)); }
+		if(this._promises.ready && ![1, 2, 6].includes(data.op)) { return this._promises.ready.then(() => this.send(data)); }
 		if(!this._socket) { return Promise.reject(new Error("Not connected")); }
 		if(!isValidRequest(data)) { return Promise.reject(new Error("Invalid request")); }
-		let timer = internal.ratelimitTimer;
+		let timer = this._timers.ratelimit;
 		if(!timer) {
-			timer = internal.ratelimitTimer = setTimeout(() => {
-				internal.ratelimitTimer = null;
-			}, 60000);
-			timer.count = 0;
-			timer.until = Date.now() + 60000;
+			const timeout = /** @type {NonNullable<typeof this._timers.ratelimit>} */ (setTimeout(() => {
+				this._timers.ratelimit = null;
+			}, 60000));
+			timeout.count = 0;
+			timeout.until = Date.now() + 60000;
+			timer = this._timers.ratelimit = timeout;
 		}
 		if(++timer.count > 115 && ![1, 2, 6].includes(data.op)) {
-			const error = new Error("Socket rate limit exceeded");
+			const error = /** @type {Error & { retry_after: number }} */ (new Error("Socket rate limit exceeded"));
 			error.retry_after = timer.until - Date.now();
 			return Promise.reject(error);
 		}
-		internal.lastSent = data;
 		if(this.encoding === "json") {
 			const buff = Buffer.from(JSON.stringify(data));
 			this._write(buff, 1);
@@ -203,10 +198,21 @@ class WebsocketShard extends EventEmitter {
 		}
 		return Promise.resolve();
 	}
+
+	/**
+	 *
+	 * @param {requestGuildMembersOptions} options 
+	 * @returns {Promise<{
+	 * 		guild_id: string,
+	 * 		members: Record<string, any>[],
+	 * 		presences: Record<string, any>[],
+	 * 		not_found: string[]
+	 * }>}
+	 */
 	requestGuildMembers(options) {
 		if(!options || typeof options !== "object") { return Promise.reject(new Error("Invalid options")); }
 		if(typeof options.guild_id !== "string") { return Promise.reject(new Error("Invalid guild_id")); }
-		const chunks = this._internal.memberChunks;
+		const chunks = this._memberChunks;
 		const hasUsers = Array.isArray(options.user_ids);
 		const n = ((Date.now() % 86400000 + Math.random()) * 100000000).toString(36);
 		const timeout = Number.isInteger(options.timeout) ? options.timeout : 10000;
@@ -245,6 +251,12 @@ class WebsocketShard extends EventEmitter {
 			};
 		}));
 	}
+
+	/**
+	 * 
+	 * @param {updatePresenceOptions} presence 
+	 * @returns {Promise<void>}
+	 */
 	updatePresence(presence) {
 		if(!presence || typeof presence !== "object") { return Promise.reject(new Error("Invalid presence object")); }
 		const data = {
@@ -259,17 +271,17 @@ class WebsocketShard extends EventEmitter {
 		if(!["online", "dnd", "idle", "invisible", "offline"].includes(data.status)) {
 			return Promise.reject(new Error("Invalid status"));
 		}
-		const internal = this._internal;
-		let timer = internal.presenceTimer;
+		let timer = this._timers.presencelimit;
 		if(!timer) {
-			timer = internal.presenceTimer = setTimeout(() => {
-				internal.presenceTimer = null;
-			}, 20000);
-			timer.count = 0;
-			timer.until = Date.now() + 20000;
+			const timeout = /** @type {NonNullable<typeof this._timers.presencelimit>} */ (setTimeout(() => {
+				this._timers.presencelimit = null;
+			}, 20000));
+			timeout.count = 0;
+			timeout.until = Date.now() + 20000;
+			timer = this._timers.presencelimit = timeout;
 		}
 		if(++timer.count > 5) {
-			const error = new Error("Presence update rate limit exceeded");
+			const error = /** @type {Error & { retry_after: number }} */ (new Error("Presence update rate limit exceeded"));
 			error.retry_after = timer.until - Date.now();
 			return Promise.reject(error);
 		}
@@ -278,12 +290,34 @@ class WebsocketShard extends EventEmitter {
 			d: data
 		});
 	}
+
+	/**
+	 * 
+	 * @param {UpdateVoiceStateOptions} state 
+	 * @returns {Promise<{
+	 * 		guild_id: string,
+	 * 		channel_id?: string,
+	 * 		user_id: string,
+	 * 		member?: Record<string, any>,
+	 * 		session_id: string,
+	 * 		deaf: boolean,
+	 * 		mute: boolean,
+	 * 		self_deaf: boolean,
+	 * 		self_mute: boolean,
+	 * 		self_stream?: boolean,
+	 * 		self_video: boolean,
+	 * 		suppress: boolean,
+	 * 		request_to_speak_timestamp?: string,
+	 * 		token?: string,
+	 * 		endpoint?: string
+	 * }>}
+	 */
 	updateVoiceState(state) {
 		if(!state || typeof state !== "object") { return Promise.reject(new Error("Invalid voice state object")); }
 		if(typeof state.guild_id !== "string") { return Promise.reject(new Error("Invalid guild_id")); }
 		const id = state.guild_id;
 		const channel = typeof state.channel_id === "string" ? state.channel_id : null;
-		const chunks = this._internal.voiceChunks;
+		const chunks = this._voiceChunks;
 		const timeout = Number.isInteger(state.timeout) ? state.timeout : 10000;
 		return this.send({
 			op: 4,
@@ -302,7 +336,8 @@ class WebsocketShard extends EventEmitter {
 				clearTimeout(timer);
 				const data = chunks[id];
 				delete chunks[id];
-				resolve(Object.assign(data.state, data.server));
+				const result = /** @type {ReturnType<typeof this.updateVoiceState>} */ (Object.assign({}, data.state, data.server));
+				resolve(result);
 			};
 			chunks[id] = {
 				resolve: resolver,
@@ -311,6 +346,79 @@ class WebsocketShard extends EventEmitter {
 			};
 		}));
 	}
+
+	/**
+	 * @private
+	 * @returns {Promise<void>}
+	 */
+	_connect(retries = 0) {
+		this.emit("debug", "Creating connection");
+		const key = randomBytes(16).toString("base64");
+		const compression = this.compression === 2 ? "&compress=zlib-stream" : "";
+		const path = `/?v=${this.version}&encoding=${this.encoding}${compression}`;
+		const req = request({
+			hostname: this.url,
+			path: path,
+			headers: {
+				"Connection": "Upgrade",
+				"Upgrade": "websocket",
+				"Sec-WebSocket-Key": key,
+				"Sec-WebSocket-Version": "13",
+			}
+		});
+		return new Promise((resolve, reject) => {
+			req.on("upgrade", (res, socket) => {
+				const hash = createHash("sha1").update(key + "258EAFA5-E914-47DA-95CA-C5AB0DC85B11").digest("base64");
+				const accept = res.headers["sec-websocket-accept"];
+				if(hash !== accept) {
+					socket.end(() => {
+						this.emit("debug", "Failed websocket-key validation");
+						const error = /** @type {Error & { expected?: string, received?: string }} */ (new Error("Invalid Sec-Websocket-Accept"));
+						error.expected = hash;
+						error.received = accept;
+						reject(error);
+					});
+					return;
+				}
+				socket.on("error", this._onError.bind(this));
+				socket.on("close", this._onClose.bind(this));
+				socket.on("readable", this._onReadable.bind(this));
+				this._socket = socket;
+				if(this.compression === 2) {
+					const z = /** @type {NonNullable<typeof this._zlib>} */ (createInflate());
+					z._c = z.close;
+					// @ts-expect-error private / not typed
+					z._h = z._handle;
+					// @ts-expect-error private / not typed
+					z._hc = z._handle.close;
+					z._v = () => void 0;
+					this._zlib = z;
+				}
+				this.emit("debug", "Connected");
+				this._promises.connect?.resolve();
+				resolve();
+			});
+			req.on("error", e => {
+				this.emit("debug", "Failed to connect");
+				this.emit("debug", e);
+				if(retries < 3) {
+					this.emit("debug", "Retrying...");
+					setTimeout(() => resolve(this._connect(retries + 1)), 500);
+				} else {
+					reject(e);
+				}
+			});
+			req.end();
+		});
+	}
+
+	/**
+	 * 
+	 * @param {Buffer} packet 
+	 * @param {number} opcode 
+	 * @returns {void}
+	 * @private
+	 */
 	_write(packet, opcode) {
 		const socket = this._socket;
 		if(!socket || !socket.writable) { return; }
@@ -334,14 +442,18 @@ class WebsocketShard extends EventEmitter {
 		frame.set(packet, frame.length - length);
 		socket.write(frame);
 	}
+
+	/**
+	 * 
+	 * @returns {Promise<void>}
+	 * @private
+	 */
 	async _identify() {
 		if(typeof this.identifyHook === "function") {
 			const response = await this.identifyHook(this.id);
-			if(Number.isInteger(response.time) && response.time > 0) {
-				await new Promise(r => setTimeout(r, response.time));
-				if(response.ask) {
-					return this._identify();
-				}
+			if(!response.canIdentify) {
+				await new Promise(r => setTimeout(r, response.retryAfter));
+				return this._identify();
 			}
 		}
 		this.emit("debug", "Identifying");
@@ -358,8 +470,13 @@ class WebsocketShard extends EventEmitter {
 			}
 		});
 	}
+
+	/**
+	 * 
+	 * @private
+	 */
 	_resume() {
-		this._internal.replayCount = 0;
+		this._last.replayed = 0;
 		this.emit("debug", "Resuming");
 		this.send({
 			op: 6,
@@ -370,19 +487,84 @@ class WebsocketShard extends EventEmitter {
 			}
 		});
 	}
-	_initReconnect() {
-		if(!this._internal.reconnectPromise) {
-			let resolver;
-			const promise = new Promise(resolve => { resolver = resolve; }).then(() => { this._internal.reconnectPromise = null; });
+
+	/**
+	 * 
+	 * @private
+	 */
+	_initConnect(busy = false) {
+		const promises = this._promises;
+		if(!promises.connect) {
+			/** @type {*} */ let resolver;
+			const promise = /** @type {NonNullable<typeof this._promises.connect>} */ (new Promise(resolve => {
+				resolver = resolve;
+			}).then(() => {
+				promises.connect = null;
+				this._timestamps.connectedAt = Date.now();
+			}));
 			promise.resolve = resolver;
-			promise.offline = false;
-			this._internal.reconnectPromise = promise;
+			promise.busy = busy;
+			promises.connect = promise;
+		}
+		if(!promises.ready) {
+			/** @type {*} */ let resolver;
+			const promise = /** @type {NonNullable<typeof this._promises.ready>} */ (new Promise(resolve => {
+				resolver = resolve;
+			}).then(() => {
+				promises.ready = null;
+				this._timestamps.readyAt = Date.now();
+			}));
+			promise.resolve = resolver;
+			promises.ready = promise;
 		}
 	}
-	_onError(error) {
-		this.emit("debug", error);
-		this._initReconnect();
+
+	/**
+	 * 
+	 * @private
+	 */
+	_initOffline() {
+		this.emit("debug", "Network appears to be offline, retrying in 10 seconds");
+		this._timers.offline = setTimeout(() => {
+			this._timers.offline = null;
+			this._connect(3).catch(() => this._initOffline());
+		}, 10000);
+		this._promises.connect?.resolve();
 	}
+
+	/**
+	 * 
+	 * @private
+	 */
+	_initClose(code = 4099, reconnect = false) {
+		if(reconnect) {
+			this._initConnect();
+		}
+		const timers = this._timers;
+		if(!timers.close) {
+			timers.close = setTimeout(() => {
+				this.emit("debug", "Did not receive a close confirmation after 5 seconds, destroying...");
+				this._socket?.destroy();
+			}, 5000);
+		}
+		this._write(Buffer.from([code >> 8, code & 255]), 8);
+	}
+
+	/**
+	 * 
+	 * @param {Error} error 
+	 * @private
+	 */
+	_onError(error) {
+		this.emit("debug", "Received an error event");
+		this.emit("debug", error);
+		this._initConnect();
+	}
+
+	/**
+	 * 
+	 * @private
+	 */
 	_onClose() {
 		const socket = this._socket;
 		if(!socket) { return; }
@@ -391,54 +573,57 @@ class WebsocketShard extends EventEmitter {
 		socket.removeListener("error", this._onError);
 		socket.removeListener("close", this._onClose);
 		this._socket = null;
-		const internal = this._internal;
-		clearInterval(internal.heartbeatInterval);
-		clearTimeout(internal.ratelimitTimer);
-		clearTimeout(internal.presenceTimer);
-		internal.heartbeatInterval = null;
-		internal.ratelimitTimer = null;
-		internal.presenceTimer = null;
-		internal.connectedAt = null;
-		internal.readyAt = null;
-		if(internal.pingPromise) {
-			internal.pingPromise.resolve();
+		this._timestamps.connectedAt = 0;
+		this._timestamps.readyAt = 0;
+		if(this._zlib) {
+			this._zlib.close();
+			this._zlib = null;
 		}
-		if(internal.zlib) {
-			internal.zlib.close();
-			internal.zlib = null;
+		const timers = this._timers;
+		if(timers.heartbeat) {
+			clearInterval(timers.heartbeat);
+			timers.heartbeat = null;
 		}
-		if(internal.reconnectPromise) {
+		if(timers.ratelimit) {
+			clearTimeout(timers.ratelimit);
+			timers.ratelimit = null;
+		}
+		if(timers.presencelimit) {
+			clearTimeout(timers.presencelimit);
+			timers.presencelimit = null;
+		}
+		if(timers.close) {
+			clearTimeout(timers.close);
+			timers.close = null;
+		}
+		const promises = this._promises;
+		if(promises.ping) {
+			promises.ping.resolve();
+		}
+		if(promises.close) {
+			promises.close.resolve();
+			return;
+		}
+		if(promises.connect || !this._last.error) {
+			if(!promises.connect) {
+				this.emit("debug", "Received close event for unknown reasons");
+				this._initConnect();
+			}
 			this.emit("debug", "Reconnecting");
-			this.connect();
+			this._connect().catch(() => this._initOffline());
 			return;
 		}
-		if(internal.closePromise) {
-			internal.closePromise.resolve();
-			return;
-		}
-		if(!internal.lastError) {
-			this.emit("debug", "Received close event for unknown reasons");
-			this.emit("debug", "Reconnecting");
-			this._initReconnect();
-			this.connect();
-			return;
-		}
-		this.emit("debug", `Shard closed due to an unrecoverable close code ${internal.lastError.code}`);
-		if(internal.lastReceived) {
-			this.emit("debug", "Last packet received before closing:");
-			this.emit("debug", internal.lastReceived);
-			internal.lastReceived = null;
-		}
-		if(internal.lastSent) {
-			this.emit("debug", "Last packet sent before closing:");
-			this.emit("debug", internal.lastSent);
-			internal.lastSent = null;
-		}
-		this.emit("close", internal.lastError);
-		internal.lastError = null;
+		this.emit("debug", `Shard closed due to an unrecoverable close code ${this._last.error.code}`);
+		this.emit("close", this._last.error);
+		this._last.error = null;
 	}
+
+	/**
+	 * 
+	 * @private
+	 */
 	_onReadable() {
-		const socket = this._socket;
+		const socket = /** @type {NonNullable<typeof this._socket>} */ (this._socket);
 		while(socket.readableLength > 1) {
 			let length = readRange(socket, 1, 1) & 127;
 			let bytes = 0;
@@ -456,8 +641,14 @@ class WebsocketShard extends EventEmitter {
 			this._processFrame(opcode, payload);
 		}
 	}
+
+	/**
+	 * 
+	 * @param {number} opcode 
+	 * @param {Buffer} message 
+	 * @private
+	 */
 	_processFrame(opcode, message) {
-		const internal = this._internal;
 		switch(opcode) {
 			case 1: {
 				const packet = JSON.parse(message.toString());
@@ -467,31 +658,36 @@ class WebsocketShard extends EventEmitter {
 			case 2: {
 				let packet;
 				if(this.compression === 2) {
-					const z = internal.zlib;
-					let error = null;
-					let data = null;
+					const z = /** @type {NonNullable<typeof this._zlib>} */ (this._zlib);
+					let error;
+					let data;
+					// @ts-expect-error _handle is private / not typed
 					z.close = z._handle.close = z._v;
 					try {
+						// @ts-expect-error _processChunk is private / not typed
 						data = z._processChunk(message, Z_SYNC_FLUSH);
 					} catch(e) {
-						error = e;
+						error = /** @type {Error} */ (e);
 					}
-					const l = message.length;
-					if(message[l - 4] !== 0 || message[l - 3] !== 0 || message[l - 2] !== 255 || message[l - 1] !== 255) {
-						console.log(message, message.toString(), data, data.toString());
-						throw new Error("discord actually does send fragmented zlib messages. if you see this error let me know");
-					}
-					z.close = z._c;
+					z.close = /** @type {typeof z.close} */ (z._c);
+					// @ts-expect-error _handle is private / not typed
 					z._handle = z._h;
+					// @ts-expect-error _handle is private / not typed
 					z._handle.close = z._hc;
+					// @ts-expect-error _events is private / not typed
 					z._events.error = void 0;
+					// @ts-expect-error _eventCount is private / not typed
 					z._eventCount--;
 					z.removeAllListeners("error");
+					const l = message.length;
+					if(data && (message[l - 4] !== 0 || message[l - 3] !== 0 || message[l - 2] !== 255 || message[l - 1] !== 255)) {
+						console.log(message, message.toString(), data, data.toString());
+						error = new Error("discord actually does send fragmented zlib messages. if you see this error let me know");
+					}
 					if(error) {
 						this.emit("debug", "Zlib error");
 						this.emit("debug", error);
-						this._initReconnect();
-						this._write(Buffer.from([16, 3]), 8);
+						this._initClose(4099, true);
 						return;
 					}
 					packet = this.encoding === "json" ? JSON.parse(data.toString()) : readETF(data, 1);
@@ -511,18 +707,18 @@ class WebsocketShard extends EventEmitter {
 				const code = message.length > 1 ? (message[0] << 8) + message[1] : 0;
 				const reason = message.length > 2 ? message.slice(2).toString() : "";
 				this.emit("debug", `Received close frame with code: ${code} ${reason}`);
-				if(!internal.closePromise) {
+				if(!this._promises.close) {
 					if([4004, 4010, 4011, 4012, 4013, 4014].includes(code)) {
-						const error = new Error(`Websocket closed with code ${code}`);
+						const error = /** @type {Error & { code: number, reason: string }} */ (new Error(`Websocket closed with code ${code}`));
 						error.code = code;
 						error.reason = reason;
-						internal.lastError = error;
+						this._last.error = error;
 					} else {
-						if([4001, 4007, 4009].includes(code)) {
+						if([1000, 4001, 4007, 4009].includes(code)) {
 							this.session = null;
 							this.sequence = 0;
 						}
-						this._initReconnect();
+						this._initConnect();
 					}
 					if(code !== 4099) {
 						this._write(message.slice(0, 2), 8); // echo close code
@@ -537,18 +733,22 @@ class WebsocketShard extends EventEmitter {
 			}
 			case 10: {
 				this.emit("debug", "Received pong frame");
-				if(internal.pingPromise) { internal.pingPromise.resolve(); }
+				if(this._promises.ping) { this._promises.ping.resolve(); }
 				break;
 			}
 		}
 	}
+
+	/**
+	 * 
+	 * @param {Record<string, any>} data 
+	 * @private
+	 */
 	_processMessage(data) {
-		const internal = this._internal;
-		internal.lastReceived = data;
-		internal.lastPacket = Date.now();
+		this._timestamps.lastPacket = Date.now();
 		if(data.s > this.sequence) {
 			this.sequence = data.s;
-			if(internal.replayCount !== null) { internal.replayCount++; }
+			if(this._last.replayed !== null) { this._last.replayed++; }
 		}
 		switch(data.op) {
 			case 0: {
@@ -557,23 +757,23 @@ class WebsocketShard extends EventEmitter {
 				switch(t) {
 					case "READY": {
 						this.session = d.session_id;
-						internal.readyAt = internal.identifiedAt = Date.now();
-						if(internal.reconnectPromise) { internal.reconnectPromise.resolve(); }
+						this._timestamps.readyAt = this._timestamps.identifiedAt = Date.now();
+						this._promises.ready?.resolve();
 						this.emit("debug", `Ready! Session = ${d.session_id}`);
 						this.emit("ready", d);
 						return;
 					}
 					case "RESUMED": {
-						d.replayed = internal.replayCount;
-						internal.replayCount = null;
-						internal.readyAt = Date.now();
-						if(internal.reconnectPromise) { internal.reconnectPromise.resolve(); }
+						d.replayed = this._last.replayed;
+						this._last.replayed = null;
+						this._timestamps.readyAt = Date.now();
+						this._promises.ready?.resolve();
 						this.emit("debug", `Resumed! Session = ${this.session}, replayed = ${d.replayed}`);
 						this.emit("resumed", d);
 						return;
 					}
 					case "GUILD_MEMBERS_CHUNK": {
-						const chunk = this._internal.memberChunks[d.nonce];
+						const chunk = this._memberChunks[d.nonce];
 						if(chunk) {
 							chunk.members.push(...d.members);
 							if(d.presences) { chunk.presences.push(...d.presences); }
@@ -583,7 +783,7 @@ class WebsocketShard extends EventEmitter {
 						break;
 					}
 					case "VOICE_STATE_UPDATE": {
-						const chunk = this._internal.voiceChunks[d.guild_id];
+						const chunk = this._voiceChunks[d.guild_id];
 						if(chunk) {
 							chunk.state = d;
 							if(chunk.state && chunk.server) { chunk.resolve(); }
@@ -591,7 +791,7 @@ class WebsocketShard extends EventEmitter {
 						break;
 					}
 					case "VOICE_SERVER_UPDATE": {
-						const chunk = this._internal.voiceChunks[d.guild_id];
+						const chunk = this._voiceChunks[d.guild_id];
 						if(chunk) {
 							chunk.server = d;
 							if(chunk.state && chunk.server) { chunk.resolve(); }
@@ -609,8 +809,7 @@ class WebsocketShard extends EventEmitter {
 			}
 			case 7: {
 				this.emit("debug", "Discord asked us to reconnect");
-				this._initReconnect();
-				this._write(Buffer.from([16, 3]), 8);
+				this._initClose(4099, true);
 				break;
 			}
 			case 9: {
@@ -628,23 +827,21 @@ class WebsocketShard extends EventEmitter {
 				const interval = data.d.heartbeat_interval;
 				const timeout = Math.floor(interval * Math.random());
 				this.emit("debug", `Received hello. Heartbeat interval = ${interval}ms. First heartbeat in ${timeout}ms`);
-				internal.heartbeatInterval = setTimeout(() => {
-					internal.lastHeartbeat = Date.now();
+				this._timers.heartbeat = setTimeout(() => {
+					this._timestamps.lastHeartbeat = Date.now();
 					this.emit("debug", "Sending heartbeat");
 					this.send({ op: 1, d: this.sequence });
-					internal.heartbeatInterval = setInterval(() => {
-						if(internal.lastHeartbeat > internal.lastAck) {
+					this._timers.heartbeat = setInterval(() => {
+						if(this._timestamps.lastHeartbeat > this._timestamps.lastAck) {
 							this.emit("debug", "Did not receive an Ack, attempting to reconnect");
-							this._initReconnect();
-							this._write(Buffer.from([16, 3]), 8);
+							this._initClose(4099, true);
 						} else {
-							internal.lastHeartbeat = Date.now();
+							this._timestamps.lastHeartbeat = Date.now();
 							this.emit("debug", "Sending heartbeat");
 							this.send({ op: 1, d: this.sequence });
 						}
 					}, interval);
 				}, timeout);
-				if(internal.reconnectPromise) { internal.reconnectPromise.resolve(); }
 				if(this.session && this.sequence) {
 					this._resume();
 				} else {
@@ -654,31 +851,53 @@ class WebsocketShard extends EventEmitter {
 			}
 			case 11: {
 				this.emit("debug", "Received ACK");
-				internal.lastAck = Date.now();
-				internal.lastPing = internal.lastAck - internal.lastHeartbeat;
+				this._timestamps.lastAck = Date.now();
+				this._last.ping = this._timestamps.lastAck - this._timestamps.lastHeartbeat;
 				break;
 			}
 		}
 	}
 }
 
+/**
+ * 
+ * @param {*} obj 
+ * @returns {obj is Properties}
+ */
 function isValidProperties(obj) {
-	return obj && typeof obj === "object" && ["$os", "$browser", "$device"].every(x => typeof obj[x] === "string");
+	return obj && typeof obj === "object" && ["os", "browser", "device"].every(x => typeof obj[x] === "string");
 }
 
+/**
+ * 
+ * @param {*} obj 
+ * @returns {obj is Presence}
+ */
 function isValidPresence(obj) {
 	if(!obj || typeof obj !== "object" || typeof obj.since === "undefined" || typeof obj.afk !== "boolean" || typeof obj.status !== "string") { return false; }
 	if(!["online", "dnd", "idle", "invisible", "offline"].includes(obj.status = obj.status.toLowerCase())) { return false; }
 	if(!Array.isArray(obj.activities)) { return false; }
-	if(obj.activities.length && !obj.activities.every(x => typeof x.name === "string" && [0, 1, 2, 3, 4, 5].includes(x.type))) { return false; }
+	if(obj.activities.length && !obj.activities.every((/** @type {*} */ x) => x && typeof x === "object" && typeof x.name === "string" && [0, 1, 2, 3, 4, 5].includes(x.type))) { return false; }
 	return true;
 }
 
+/**
+ * 
+ * @param {*} value 
+ * @returns {boolean}
+ */
 function isValidRequest(value) {
 	return value && typeof value === "object" && Number.isInteger(value.op) && typeof value.d !== "undefined";
 }
 
+/**
+ * 
+ * @param {import("net").Socket} socket 
+ * @param {number} index 
+ * @param {number} bytes 
+ */
 function readRange(socket, index, bytes) {
+	// @ts-expect-error _readableState is private / not typed
 	let head = socket._readableState.buffer.head;
 	let cursor = 0;
 	let read = 0;
@@ -697,10 +916,15 @@ function readRange(socket, index, bytes) {
 	throw new Error("readRange failed?");
 }
 
+/**
+ * 
+ * @param {Buffer} data 
+ * @param {number} start 
+ */
 function readETF(data, start) {
-	let view;
+	/** @type {DataView} */ let view;
 	let x = start;
-	const loop = () => {
+	/** @type {() => any} */ const loop = () => {
 		const type = data[x++];
 		switch(type) {
 			case 97: {
@@ -715,6 +939,7 @@ function readETF(data, start) {
 				const length = data.readUInt16BE(x);
 				let atom = "";
 				if(length > 30) {
+					// @ts-expect-error latin1Slice is not documented for some reason
 					atom = data.latin1Slice(x += 2, x + length);
 				} else {
 					for(let i = x += 2; i < x + length; i++) {
@@ -753,6 +978,7 @@ function readETF(data, start) {
 				const length = data.readUInt32BE(x);
 				let str = "";
 				if(length > 30) {
+					// @ts-expect-error utf8Slice not documented for some reason
 					str = data.utf8Slice(x += 4, x + length);
 				} else {
 					let i = x += 4;
@@ -774,7 +1000,7 @@ function readETF(data, start) {
 				return str;
 			}
 			case 110: {
-				if(!view) { view = new DataView(data.buffer, data.offset, data.byteLength); }
+				if(!view) { view = new DataView(data.buffer, data.byteOffset, data.byteLength); }
 				const length = data[x++];
 				const sign = data[x++];
 				let left = length;
@@ -785,10 +1011,10 @@ function readETF(data, start) {
 						num += view.getBigUint64(x + (left -= 8), true);
 					} else if(left >= 4) {
 						num <<= 32n;
-						num += BigInt(view.getUint32(x + (left -= 4)), true);
+						num += BigInt(view.getUint32(x + (left -= 4), true));
 					} else if(left >= 2) {
 						num <<= 16n;
-						num += BigInt(view.getUint16(x + (left -= 2)), true);
+						num += BigInt(view.getUint16(x + (left -= 2), true));
 					} else {
 						num <<= 8n;
 						num += BigInt(data[x]);
@@ -799,7 +1025,7 @@ function readETF(data, start) {
 				return sign ? -num : num;
 			}
 			case 116: {
-				const obj = {};
+				/** @type {Record<string, any>} */ const obj = {};
 				const length = data.readUInt32BE(x);
 				x += 4;
 				for(let i = 0; i < length; i++) {
@@ -814,21 +1040,27 @@ function readETF(data, start) {
 	return loop();
 }
 
+/**
+ * 
+ * @param {*} data 
+ */
 function writeETF(data) {
 	const b = Buffer.allocUnsafe(1 << 12);
 	b[0] = 131;
 	let i = 1;
-	const loop = (obj) => {
+	/** @type {(obj: any) => any} */ const loop = (obj) => {
 		const type = typeof obj;
 		switch(type) {
 			case "boolean": {
 				b[i++] = 100;
 				if(obj) {
 					b.writeUInt16BE(4, i);
+					// @ts-expect-error latin1Write is not documented for some reason
 					b.latin1Write("true", i += 2);
 					i += 4;
 				} else {
 					b.writeUInt16BE(5, i);
+					// @ts-expect-error latin1Write is not documented for some reason
 					b.latin1Write("false", i += 2);
 					i += 5;
 				}
@@ -838,6 +1070,7 @@ function writeETF(data) {
 				const length = Buffer.byteLength(obj);
 				b[i++] = 109;
 				b.writeUInt32BE(length, i);
+				// @ts-expect-error utf8Write is not documented for some reason
 				b.utf8Write(obj, i += 4);
 				i += length;
 				break;
@@ -880,6 +1113,7 @@ function writeETF(data) {
 				if(obj === null) {
 					b[i++] = 100;
 					b.writeUInt16BE(3, i);
+					// @ts-expect-error latin1Write is not documented for some reason
 					b.latin1Write("nil", i += 2);
 					i += 3;
 				} else if(Array.isArray(obj)) {
@@ -912,34 +1146,117 @@ function writeETF(data) {
 
 module.exports = WebsocketShard;
 
-// in case discord ever sends fin=0 messages
-/*
-_onFrame(frame, bytes) {
-	const socket = this._socket;
-	const fin = frame[0] >> 7;
-	if(fin !== 1) {
-		if(!socket._frameBuffer) {
-			socket._frameBuffer = [frame];
-		} else {
-			socket._frameBuffer.push(frame);
-		}
-		return;
-	}
-	let opcode = frame[0] & 15;
-	if(opcode === 0) {
-		const buffers = socket._frameBuffer;
-		const payloads = [];
-		socket._frameBuffer = null;
-		opcode = buffers[0][0] & 15;
-		for(let i = 0; i < buffers.length; i++) {
-			const buffer = buffers[i];
-			payloads.push(buffer.slice(bytes));
-		}
-		const payload = Buffer.concat(payloads);
-		this._onMessage(opcode, payload);
-	} else {
-		const payload = frame.slice(bytes);
-		this._onMessage(opcode, payload);
-	}
-}
-*/
+/**
+ * @typedef {{
+ * 		token: string,
+ * 		intents: number,
+ * 		id?: number,
+ * 		total?: number,
+ * 		large_threshold?: number
+ * 		presence?: Presence,
+ * 		properties?: Properties,
+ * 		version?: number,
+ * 		encoding?: "etf" | "json",
+ * 		compression?: 0 | 1 | 2,
+ * 		url?: string,
+ * 		session?: string,
+ * 		sequence?: number,
+ * 		identifyHook?: (id: number) => { canIdentify: boolean, retryAfter?: number } | Promise<{ canIdentify: boolean, retryAfter?: number }>
+ * }} WebsocketShardOptions
+ */
+
+/**
+ * @typedef {{
+ * 		op: number,
+ * 		d: any
+ * }} GatewayCommand
+ */
+
+/**
+ * @typedef {{
+ * 		guild_id: string,
+ * 		query?: string,
+ * 		limit?: number,
+ * 		presences?: boolean,
+ * 		user_ids?: string[],
+ * 		timeout?: number
+ * }} requestGuildMembersOptions
+ */
+
+/**
+ * @typedef {{
+ * 		since?: number,
+ * 		afk?: boolean,
+ * 		status?: "online" | "dnd" | "idle" | "invisible" | "offline",
+ * 		activities?: Presence["activities"]
+ * }} updatePresenceOptions
+ */
+
+/**
+ * @typedef {{
+ * 		guild_id: string,
+ * 		channel_id?: string,
+ * 		self_mute?: boolean,
+ * 		self_deaf?: boolean,
+ * 		wait_for_server?: boolean,
+ * 		timeout?: number
+ * }} UpdateVoiceStateOptions
+ */
+
+/**
+ * @typedef {{
+ * 		os: string,
+ * 		browser: string,
+ * 		device: string
+ * }} Properties
+ */
+
+/**
+ * @typedef {{
+ * 		since: number?,
+ * 		afk: boolean,
+ * 		status: "online" | "dnd" | "idle" | "invisible" | "offline",
+ * 		activities: {
+ * 			name: string,
+ * 			type: 0 | 1 | 2 | 3 | 4 | 5,
+ * 			url?: string
+ * 		}[]
+ * }} Presence
+ */
+
+/**
+ * @typedef {{
+ * 		op: number,
+ * 		d: Record<string, any>,
+ * 		s: number,
+ * 		t: string
+ * }} ShardEvent
+ */
+
+/**
+ * @typedef {{
+ * 		v: string,
+ * 		user: Record<string, any>,
+ * 		guilds: Record<string, any>[],
+ * 		session_id: string,
+ * 		shard?: [number, number],
+ * 		application: Record<string, any>
+ * }} ShardReady
+ */
+
+/**
+ * @typedef {{
+ * 		replayed: number
+ * }} ShardResumed
+ */
+
+/**
+ * @typedef {{
+ * 		0: "ready",
+ * 		1: "connecting",
+ * 		2: "connected",
+ * 		3: "closing",
+ * 		4: "offline",
+ * 		5: "closed"
+ * }} StatusCodes
+ */
