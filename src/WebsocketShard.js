@@ -172,7 +172,9 @@ class WebsocketShard extends EventEmitter {
 	 * @returns {Promise<void>}
 	 */
 	send(data) {
-		if(this._promises.ready && ![1, 2, 6].includes(data.op)) { return this._promises.ready.then(() => this.send(data)); }
+		const important = [1, 2, 6].includes(data.op);
+		if(this._promises.connect && important) { return this._promises.connect.then(() => this.send(data)); }
+		if(this._promises.ready && !important) { return this._promises.ready.then(() => this.send(data)); }
 		if(!this._socket) { return Promise.reject(new Error("Not connected")); }
 		if(!isValidRequest(data)) { return Promise.reject(new Error("Invalid request")); }
 		let timer = this._timers.ratelimit;
@@ -184,7 +186,7 @@ class WebsocketShard extends EventEmitter {
 			timeout.until = Date.now() + 60000;
 			timer = this._timers.ratelimit = timeout;
 		}
-		if(++timer.count > 115 && ![1, 2, 6].includes(data.op)) {
+		if(++timer.count > 115 && !important) {
 			const error = /** @type {Error & { retry_after: number }} */ (new Error("Socket rate limit exceeded"));
 			error.retry_after = timer.until - Date.now();
 			return Promise.reject(error);
