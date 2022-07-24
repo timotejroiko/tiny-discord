@@ -1,3 +1,4 @@
+/* eslint-disable no-extra-parens */
 "use strict";
 
 const { request, Agent } = require("https");
@@ -6,13 +7,8 @@ const { Readable } = require("stream");
 
 class RestClient {
 	/**
-	 * @param {{
-	 * 		token: string,
-	 * 		version?: number,
-	 * 		type?: "bot" | "bearer",
-	 * 		retries?: number,
-	 * 		timeout?: number
-	 * }} options 
+	 * 
+	 * @param {RestClientOptions} options 
 	 */
 	constructor(options) {
 		if(typeof options.token !== "string") { throw new Error("Invalid token"); }
@@ -21,18 +17,13 @@ class RestClient {
 		this.type = typeof options.type === "string" && options.type.toLowerCase() === "bearer" ? "Bearer" : "Bot";
 		this.retries = Number(options.retries) || 3;
 		this.timeout = Number(options.timeout) || 10000;
-		/**
-		 * @type {Agent}
-		 * @private
-		 */
-		this._agent = new Agent({ keepAlive: true });
+		/** @private */ this._agent = new Agent({ keepAlive: true });
 	}
 
 	/**
 	 * 
-	 * @param {string} path 
-	 * @param {import("https").RequestOptions} options 
-	 * @returns 
+	 * @param {RequestOptions["path"]} path 
+	 * @param {RequestOptions["options"]} options 
 	 */
 	get(path, options = {}) {
 		return this.request({
@@ -44,9 +35,8 @@ class RestClient {
 
 	/**
 	 * 
-	 * @param {string} path 
-	 * @param {import("https").RequestOptions} options 
-	 * @returns 
+	 * @param {RequestOptions["path"]} path 
+	 * @param {RequestOptions["options"]} options 
 	 */
 	delete(path, options = {}) {
 		return this.request({
@@ -58,10 +48,9 @@ class RestClient {
 
 	/**
 	 * 
-	 * @param {string} path 
-	 * @param {{ [key: string]: any, files?: { name: string, data: Buffer | Readable, type?: string }[] } | Buffer} body 
-	 * @param {import("https").RequestOptions} options 
-	 * @returns 
+	 * @param {RequestOptions["path"]} path 
+	 * @param {RequestOptions["body"]} body 
+	 * @param {RequestOptions["options"]} options 
 	 */
 	post(path, body, options = {}) {
 		return this.request({
@@ -74,10 +63,9 @@ class RestClient {
 
 	/**
 	 * 
-	 * @param {string} path 
-	 * @param {{ [key: string]: any, files?: { name: string, data: Buffer | Readable, type?: string }[] } | Buffer} body 
-	 * @param {import("https").RequestOptions} options 
-	 * @returns 
+	 * @param {RequestOptions["path"]} path 
+	 * @param {RequestOptions["body"]} body 
+	 * @param {RequestOptions["options"]} options 
 	 */
 	patch(path, body, options = {}) {
 		return this.request({
@@ -90,10 +78,9 @@ class RestClient {
 
 	/**
 	 * 
-	 * @param {string} path 
-	 * @param {{ [key: string]: any, files?: { name: string, data: Buffer | Readable, type?: string }[] } | Buffer} body 
-	 * @param {import("https").RequestOptions} options 
-	 * @returns 
+	 * @param {RequestOptions["path"]} path 
+	 * @param {RequestOptions["body"]} body 
+	 * @param {RequestOptions["options"]} options 
 	 */
 	put(path, body, options = {}) {
 		return this.request({
@@ -106,9 +93,8 @@ class RestClient {
 
 	/**
 	 * 
-	 * @param {string} path 
-	 * @param {import("https").RequestOptions} options 
-	 * @returns 
+	 * @param {RequestOptions["path"]} path 
+	 * @param {RequestOptions["options"]} options 
 	 */
 	cdn(path, options = {}) {
 		return this.request({
@@ -121,26 +107,16 @@ class RestClient {
 
 	/**
 	 * 
-	 * @param {{
-	 * 		path: string,
-	 * 		method: string,
-	 * 		body?: { [key: string]: any, files?: { name: string, data: Buffer | Readable, type?: string }[] } | Buffer,
-	 * 		headers?: import("http").OutgoingHttpHeaders,
-	 * 		options?: import("https").RequestOptions,
-	 * 		retries?: number,
-	 * 		timeout?: number,
-	 * 		cdn?: boolean
-	 * }} options
-	 * @returns {Promise<{ status: number, headers: import("http").IncomingHttpHeaders, body: { buffer: Buffer, readonly text: string, readonly json: any } }> & { abort: (reason: string) => void }}
+	 * @param {RequestOptions} options
 	 */
 	request({ path, method, body, headers = {}, options = {}, retries = this.retries, timeout = this.timeout, cdn = false}, _retryCount = 0) {
 		let _aborted = false;
-		let _request;
-		let _response;
-		let _resolve;
-		let _reject;
-		let _timer;
-		const abort = reason => {
+		/** @type {import("http").ClientRequest} */ let _request;
+		/** @type {import("http").IncomingMessage} */ let _response;
+		/** @type {(value: any) => void} */ let _resolve;
+		/** @type {(reason: any) => void} */ let _reject;
+		/** @type {NodeJS.Timeout} */ let _timer;
+		const abort = (/** @type {Error} */ reason) => {
 			if(_aborted) { return; }
 			_aborted = true;
 			if(_response) { _response.destroy(); }
@@ -148,13 +124,13 @@ class RestClient {
 			clearTimeout(_timer);
 			_reject(reason);
 		};
-		const done = data => {
+		const done = (/** @type {*} */ data) => {
 			if(_aborted) { return; }
 			clearTimeout(_timer);
 			_resolve(data);
 		};
 		_timer = setTimeout(() => abort(new Error("Request timed out")), timeout);
-		/** @type {*} */ const promise = new Promise((resolve, reject) => {
+		const promise = new Promise((resolve, reject) => {
 			_resolve = resolve;
 			_reject = reject;
 			_request = request({
@@ -187,8 +163,8 @@ class RestClient {
 				res.on("error", err => {
 					abort(err);
 				});
-				const data = [];
-				res.on("data", d => data.push(d));
+				const data = /** @type {Buffer[]} */ ([]);
+				res.on("data", (/** @type {Buffer} */ d) => data.push(d));
 				res.once("end", () => {
 					if(!res.complete) {
 						return abort(new Error("Received incomplete message"));
@@ -249,9 +225,58 @@ class RestClient {
 				_request.end();
 			}
 		});
-		promise.abort =  reason => abort(new Error(`Aborted by user: ${reason || "no reason provided"}`));
-		return promise;
+		const p = /** @type {AbortablePromise<RequestResult>} */ (promise);
+		p.abort = reason => abort(new Error(`Aborted by user: ${reason || "no reason provided"}`));
+		return p;
 	}
 }
 
 module.exports = RestClient;
+
+/**
+ * @typedef {{
+ * 		token: string,
+ * 		version?: number,
+ * 		type?: "bot" | "bearer",
+ * 		retries?: number,
+ * 		timeout?: number
+ * }} RestClientOptions
+ */
+
+/**
+ * @typedef {{
+ * 		path: string,
+ * 		method: string,
+ * 		body?: { [key: string]: any, files?: FileObject[] } | Buffer,
+ * 		headers?: import("http").OutgoingHttpHeaders,
+ * 		options?: import("https").RequestOptions,
+ * 		retries?: number,
+ * 		timeout?: number,
+ * 		cdn?: boolean
+ * }} RequestOptions
+ */
+
+/**
+ * @typedef {{
+ * 		name: string,
+ * 		data: Buffer | Readable,
+ * 		type?: string 
+ * }} FileObject
+ */
+
+/**
+ * @typedef {{
+ * 		status: import("http").IncomingMessage["statusCode"],
+ * 		headers: import("http").IncomingHttpHeaders,
+ * 		body: {
+ * 			buffer: Buffer,
+ * 			readonly text: string,
+ * 			readonly json: any
+ * 		}
+ * }} RequestResult
+ */
+
+/**
+ * @template T
+ * @typedef {Promise<T> & { abort: (reason: string) => void }} AbortablePromise
+ */

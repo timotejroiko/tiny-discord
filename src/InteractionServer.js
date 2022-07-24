@@ -1,3 +1,4 @@
+/* eslint-disable no-extra-parens */
 "use strict";
 
 const { EventEmitter } = require("events");
@@ -8,18 +9,23 @@ const { createSecureServer } = require("http2");
 const { createPublicKey, verify, randomBytes } = require("crypto");
 
 class InteractionServer extends EventEmitter {
+	/**
+	 * 
+	 * @param {InteractionServerOptions} options 
+	 */
 	constructor(options) {
 		super();
 		if(typeof options.key !== "string") { throw new Error("Invalid public key"); }
 		this.key = options.key;
 		try {
-			this._key = createPublicKey({
+			/** @private */ this._key = createPublicKey({
 				key: Buffer.concat([Buffer.from("MCowBQYDK2VwAyEA", "base64"), Buffer.from(this.key, "hex")]),
 				format: "der",
 				type: "spki"
 			});
 		} catch(e) {
-			throw new Error("Invalid public key - " + e.message);
+			const error = /** @type {Error} */ (e);
+			throw new Error(`Invalid public key - ${error.message}`);
 		}
 		this.path = typeof options.path === "string" ? options.path : "/";
 		if(options.server instanceof Server) {
@@ -35,8 +41,23 @@ class InteractionServer extends EventEmitter {
 				this.server = createServer(/** @type {import("http").ServerOptions} */ (this.serverOptions));
 			}
 		}
-		this._attached = false;
+		/** @private */ this._attached = false;
+
+		/**
+		 * @type {(
+		 * 		((event: "interaction", callback: (data: InteractionData) => InteractionResponse | Promise<InteractionResponse>) => this) &
+		 * 		((event: "debug", callback: (data: string) => void) => this) &
+		 * 		((event: "error", callback: (data?: Error) => void) => this)
+		 * )}
+		 */
+		this.on;
 	}
+
+	/**
+	 * 
+	 * @param {number} port 
+	 * @returns {Promise<void>}
+	 */
 	listen(port) {
 		const server = this.server;
 		if(this._attached && server.listening) {
@@ -62,6 +83,11 @@ class InteractionServer extends EventEmitter {
 			});
 		});
 	}
+
+	/**
+	 * 
+	 * @returns {Promise<void>}
+	 */
 	close() {
 		const server = this.server;
 		if(!this._attached && !server.listening) {
@@ -86,13 +112,26 @@ class InteractionServer extends EventEmitter {
 		}
 		return Promise.resolve();
 	}
+
+	/**
+	 * 
+	 * @param {Error} e 
+	 * @private
+	 */
 	_onError(e) {
 		this.emit("error", e);
 	}
+
+	/**
+	 * 
+	 * @param {import("http").IncomingMessage | import("http2").Http2ServerRequest} req 
+	 * @param {import("http").ServerResponse & import("http2").Http2ServerResponse} res 
+	 * @private
+	 */
 	_onRequest(req, res) {
-		const signature = req.headers["x-signature-ed25519"];
-		const timestamp = req.headers["x-signature-timestamp"];
 		if(!req.url?.startsWith(this.path)) { return; }
+		const signature = /** @type {string | undefined} */ (req.headers["x-signature-ed25519"]);
+		const timestamp = /** @type {string | undefined} */ (req.headers["x-signature-timestamp"]);
 		if(!signature || !timestamp) {
 			this.emit("debug", "Received invalid headers, returning 401");
 			res.writeHead(401);
@@ -132,7 +171,8 @@ class InteractionServer extends EventEmitter {
 				return;
 			}
 			this.emit("debug", "Received interaction request");
-			const listeners = this._events.interaction;
+			// @ts-expect-error _events is private / not typed
+			const listeners = /** @type {function | function[]} */ (this._events.interaction);
 			if(!listeners) {
 				this.emit("debug", "No interaction listeners, returning 500");
 				res.writeHead(500);
@@ -166,7 +206,7 @@ class InteractionServer extends EventEmitter {
 					res.end();
 				});
 			} else {
-				const responses = [];
+				/** @type {Promise<{index: number, val?: any}>[]} */ const responses = [];
 				for(const listener of listeners) {
 					try {
 						const result = listener(data);
@@ -198,6 +238,13 @@ class InteractionServer extends EventEmitter {
 			}
 		});
 	}
+
+	/**
+	 * 
+	 * @param {InteractionResponse} val 
+	 * @param {import("http").ServerResponse & import("http2").Http2ServerResponse} res 
+	 * @private
+	 */
 	_respond(val, res) {
 		if("files" in val && Array.isArray(val.files)) {
 			const boundary = randomBytes(16).toString("base64");
@@ -243,12 +290,25 @@ class InteractionServer extends EventEmitter {
 	}
 }
 
+/**
+ * 
+ * @param {import("crypto").KeyLike} key 
+ * @param {string} body 
+ * @param {string} timestamp 
+ * @param {string} signature 
+ * @returns 
+ */
 function isValidSignature(key, body, timestamp, signature) {
 	const data = Buffer.from(timestamp + body);
 	const sig = Buffer.from(signature, "hex");
 	return verify(null, data, key, sig);
 }
 
+/**
+ * 
+ * @param {InteractionResponse} value 
+ * @returns {boolean}
+ */
 function isValidResponse(value) {
 	if(!value || typeof value !== "object") { return false; }
 	if("files" in value) {
@@ -263,3 +323,47 @@ function isValidResponse(value) {
 }
 
 module.exports = InteractionServer;
+
+/**
+ * @typedef {{
+ * 		key: string,
+ *		path?: string,
+ *		server?: import("net").Server | import("http2").SecureServerOptions | import("http").ServerOptions
+ * }} InteractionServerOptions
+ */
+
+/**
+ * @typedef {{
+ * 		id: string,
+ * 		type: number,
+ * 		data?: Record<string, any>,
+ * 		guild_id?: string,
+ * 		chanel_id?: string,
+ * 		member?: Record<string, any>,
+ * 		user?: Record<string, any>,
+ * 		token: string,
+ * 		version: number,
+ * 		message?: Record<string, any>
+ * }} InteractionData
+ */
+
+/**
+ * @typedef {{
+ * 		type: number,
+ * 		data?: Record<string, any>
+ * } | {
+ * 		files: FileObject[],
+ * 		payload_json: {
+ * 			type: number,
+ * 			data?: Record<string, any>
+ * 		}
+ * }} InteractionResponse
+ */
+
+/**
+ * @typedef {{
+ * 		name: string,
+ * 		data: Buffer | Readable,
+ * 		type?: string 
+ * }} FileObject
+ */
