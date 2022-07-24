@@ -6,7 +6,7 @@ Correct queueing of gateway idenfities is essential to ensure fast logins and to
 
 A proper identify queue has to manage everything from a centralized location, therefore a standalone manager offers some extra flexibilty by allowing this task to be offloaded both locally and remotely.
 
-This class requires the [RestClient](RestClient.md) component from this library to communicate with the Discord API when needed.
+This class uses the [RestClient](RestClient.md) component from this library to communicate with the Discord API when needed.
 
 &nbsp;
 

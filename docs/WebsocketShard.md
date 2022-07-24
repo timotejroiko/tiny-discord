@@ -2,17 +2,15 @@
 
 A barebones gateway shard to receive real-time events from discord.
 
-Supports all gateway features including etf encoding and zlib compression.
+Supports all gateway features including etf encoding and zlib compression, and also provides an identify hook for controlling login queues (ie: sharding / clustering / etc).
 
-Automatic reconnection is done for resume requests, network issues and all resumable close codes. Unresumable close codes like "invalid intents" must be handled by the user (see the `close` event). If your network goes completely offline, the shard will attempt to reconnect every 10 seconds forever unless interrupted by calling `close`.
+Shard-specific gateway command rate limits are accounted for and requests will be rejected before they are sent if hit.
 
-Shard-specific rate limits are accounted for and requests will be rejected before they are sent if hit.
-
-An identify hook is also available to manage identifies externally, for example when dealing with clustering and large bot sharding.
+Automatic reconnection is done for resume requests, network issues and all resumable close codes. Unresumable close codes like "invalid intents" must be handled by the user (see the `close` event). If your network goes completely offline, the shard will enter offline mode and automatically attempt to reconnect every 10 seconds forever. Manually calling the `close` or `connect` methods while in offline mode will disable it and stop the reconnect loop.
 
 &nbsp;
 
-## Class WebsocketShard extends EventEmitter
+## Class WebsocketShard
 
 &nbsp;
 
@@ -379,7 +377,7 @@ await shard.updateVoiceState({
 
 ### .send()
 
-Send a raw gateway command. Each shard is allowed 115 gateway commands every 60 seconds (5 are reserved for heartbeating and resuming). If the shard rate limit is reached, this method will reject with an `Error` object containing a `retry_after` property.
+Send a raw gateway command. Each shard is allowed 115 gateway commands every 60 seconds (5 are reserved for priority commands such as heartbeating and resuming). If the shard rate limit is reached, this method will reject with an `Error` object containing a `retry_after` property.
 
 |parameter|type|required|default|description|
 |-|-|-|-|-|
@@ -477,10 +475,11 @@ If resuming is unsuccessful, the shard will clear the session data and restart w
 |value|description|
 |-|-|
 |0|Ready|
-|1|Connected|
-|2|Reconnecting|
+|1|Connecting|
+|2|Connected|
 |3|Closing|
-|4|Closed|
+|4|Offline|
+|5|Closed|
 
 &nbsp;
 
@@ -508,9 +507,9 @@ If resuming is unsuccessful, the shard will clear the session data and restart w
 
 |parameter|type|required|default|description|
 |-|-|-|-|-|
-|$os|string|yes|process.platform|Platform|
-|$browser|string|yes|"tiny-discord"|Library name|
-|$device|string|yes|"tiny-discord"|Library name|
+|os|string|yes|process.platform|Platform|
+|browser|string|yes|"tiny-discord"|Library name|
+|device|string|yes|"tiny-discord"|Library name|
 
 &nbsp;
 
