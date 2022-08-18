@@ -335,6 +335,7 @@ module.exports = InteractionServer;
 /**
  * @typedef {{
  * 		id: string,
+ * 		application_id: string,
  * 		type: number,
  * 		data?: Record<string, any>,
  * 		guild_id?: string,
@@ -343,7 +344,10 @@ module.exports = InteractionServer;
  * 		user?: Record<string, any>,
  * 		token: string,
  * 		version: number,
- * 		message?: Record<string, any>
+ * 		message?: Record<string, any>,
+ * 		app_permissions?: string,
+ * 		locale?: string,
+ * 		guild_locale?: string
  * }} InteractionData
  */
 

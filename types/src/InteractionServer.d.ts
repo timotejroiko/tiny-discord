@@ -23,6 +23,7 @@ import { EventEmitter } from "events";
 import { Server } from "net";
 type InteractionData = {
     id: string;
+    application_id: string;
     type: number;
     data?: Record<string, any>;
     guild_id?: string;
@@ -32,6 +33,9 @@ type InteractionData = {
     token: string;
     version: number;
     message?: Record<string, any>;
+    app_permissions?: string;
+    locale?: string;
+    guild_locale?: string;
 };
 type InteractionResponse = {
     type: number;
