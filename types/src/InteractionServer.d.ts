@@ -27,7 +27,7 @@ type InteractionData = {
     type: number;
     data?: Record<string, any>;
     guild_id?: string;
-    chanel_id?: string;
+    channel_id?: string;
     member?: Record<string, any>;
     user?: Record<string, any>;
     token: string;
