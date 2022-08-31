@@ -66,11 +66,12 @@ class InternalSharder extends EventEmitter {
 		return ping / this.shards.size;
 	}
 	getCurrentSessions() {
-		/** @type {Record<string, { session: string?, sequence: number }>} */ const sessions = {};
+		/** @type {Record<string, { session: string?, sequence: number, resumeUrl: string? }>} */ const sessions = {};
 		for(const shard of this.shards.values()) {
 			sessions[shard.id] = {
 				session: shard.session,
-				sequence: shard.sequence
+				sequence: shard.sequence,
+				resumeUrl: shard.resumeUrl
 			};
 		}
 		return sessions;

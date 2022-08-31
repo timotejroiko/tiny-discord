@@ -30,6 +30,7 @@ class WebsocketShard extends EventEmitter {
 		this.url = typeof options.url === "string" ? options.url.includes("://") ? options.url.split("://")[1] : options.url : "gateway.discord.gg";
 		this.session = "session" in options && typeof options.session === "string" ? options.session : null;
 		this.sequence = "sequence" in options && Number(options.sequence) || 0;
+		this.resumeUrl = null;
 		this.identifyHook = typeof options.identifyHook === "function" ? options.identifyHook : null;
 
 		/** @private */ this._timestamps = {
@@ -359,7 +360,7 @@ class WebsocketShard extends EventEmitter {
 		const compression = this.compression === 2 ? "&compress=zlib-stream" : "";
 		const path = `/?v=${this.version}&encoding=${this.encoding}${compression}`;
 		const req = request({
-			hostname: this.url,
+			hostname: (this.session && this.resumeUrl) || this.url,
 			path: path,
 			headers: {
 				"Connection": "Upgrade",
@@ -759,6 +760,7 @@ class WebsocketShard extends EventEmitter {
 				switch(t) {
 					case "READY": {
 						this.session = d.session_id;
+						this.resumeUrl = d.resume_gateway_url;
 						this._timestamps.readyAt = this._timestamps.identifiedAt = Date.now();
 						this._promises.ready?.resolve();
 						this.emit("debug", `Ready! Session = ${d.session_id}`);
@@ -815,13 +817,14 @@ class WebsocketShard extends EventEmitter {
 				break;
 			}
 			case 9: {
-				this.emit("debug", "Received invalid session. Waiting 1-5s before identify");
+				this.emit("debug", "Received invalid session. Waiting 1-5s before reconnect");
 				if(data.d) {
 					this._resume();
 				} else {
 					this.session = null;
 					this.sequence = 0;
-					setTimeout(() => this._identify(), Math.floor(Math.random() * 4000) + 1000);
+					this.resumeUrl = null;
+					setTimeout(() => this._initClose(4099, true), Math.floor(Math.random() * 4000) + 1000);
 				}
 				break;
 			}

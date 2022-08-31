@@ -243,13 +243,14 @@ sharder.getAveragePing()
 
 ### .getCurrentSessions()
 
-Get the current session ids and sequences from all shards. You can use this data to resume after a restart. It is recommended to close first to prevent the sequence number from changing.
+Get the current session ids, sequence numbers and resume urls from all shards. You can use this data to resume after a process restart. It is recommended to close the the sharder first to prevent the sequence number from changing.
 
-**returns:** { [id], { session: string, sequence: number } }
+**returns:** { [id], { session: string, sequence: number, resumeUrl: string } }
 
 ```js
 await sharder.close()
-sharder.getCurrentSessions()
+const sessions = sharder.getCurrentSessions()
+// store this data somewhere before shutting down the process
 ```
 
 &nbsp;
