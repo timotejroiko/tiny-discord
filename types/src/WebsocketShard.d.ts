@@ -14,6 +14,7 @@ declare class WebsocketShard extends EventEmitter {
     url: string;
     session: string | null;
     sequence: number;
+    resumeUrl: string | null;
     identifyHook: ((id: number) => {
         canIdentify: boolean;
         retryAfter?: number | undefined;
@@ -160,6 +161,7 @@ type WebsocketShardOptions = {
     url?: string | undefined;
     session?: string | undefined;
     sequence?: number | undefined;
+    resumeUrl?: string | undefined;
     identifyHook?: ((id: number) => {
         canIdentify: boolean;
         retryAfter?: number;

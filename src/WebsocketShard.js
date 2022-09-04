@@ -30,7 +30,7 @@ class WebsocketShard extends EventEmitter {
 		this.url = typeof options.url === "string" ? options.url.includes("://") ? options.url.split("://")[1] : options.url : "gateway.discord.gg";
 		this.session = "session" in options && typeof options.session === "string" ? options.session : null;
 		this.sequence = "sequence" in options && Number(options.sequence) || 0;
-		this.resumeUrl = null;
+		this.resumeUrl = "resumeUrl" in options && typeof options.resumeUrl === "string" ? options.resumeUrl : null;
 		this.identifyHook = typeof options.identifyHook === "function" ? options.identifyHook : null;
 
 		/** @private */ this._timestamps = {
@@ -1166,6 +1166,7 @@ module.exports = WebsocketShard;
  * 		url?: string,
  * 		session?: string,
  * 		sequence?: number,
+ * 		resumeUrl?: string,
  * 		identifyHook?: (id: number) => { canIdentify: boolean, retryAfter?: number } | Promise<{ canIdentify: boolean, retryAfter?: number }>
  * }} WebsocketShardOptions
  */

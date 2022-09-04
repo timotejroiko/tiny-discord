@@ -13,6 +13,7 @@ declare class InternalSharder extends EventEmitter {
     getCurrentSessions(): Record<string, {
         session: string | null;
         sequence: number;
+        resumeUrl: string | null;
     }>;
     connect(): Promise<undefined>;
     close(): Promise<undefined>;
