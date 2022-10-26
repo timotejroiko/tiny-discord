@@ -18,7 +18,7 @@ Automatic reconnection is done for resume requests, network issues and all resum
 
 |parameter|type|required|default|description|
 |-|-|-|-|-|
-|options|[ShardOptions](#ShardOptions)|yes|-|Shard options|
+|options|[ShardOptions](#shardoptions)|yes|-|Shard options|
 
 ```js
 const shard = new WebsocketShard({
@@ -39,7 +39,7 @@ Emitted when the READY event is received.
 
 |parameter|type|description|
 |-|-|-|
-|data|[ShardReady](#ShardReady)|READY event payload|
+|data|[ShardReady](#shardready)|READY event payload|
 
 ```js
 shard.on("ready", data => {
@@ -55,7 +55,7 @@ Emitted when the RESUMED event is received.
 
 |parameter|type|description|
 |-|-|-|
-|data|[ShardResumed](#ShardResumed)|RESUMED event payload with an addittional `replayed` field|
+|data|[ShardResumed](#shardresumed)|RESUMED event payload with an addittional `replayed` field|
 
 ```js
 shard.on("resumed", data => {
@@ -71,7 +71,7 @@ Emitted when dispatch events are received.
 
 |parameter|type|description|
 |-|-|-|
-|data|[ShardEvent](#ShardEvent)|The raw event|
+|data|[ShardEvent](#shardevent)|The raw event|
 
 ```js
 shard.on("event", data => {
@@ -117,7 +117,7 @@ Internal debugging information including disconnections and reconnections.
 
 Getter for the shard's current connection status.
 
-**type:** [ShardStatus](#ShardStatus)
+**type:** [ShardStatus](#shardstatus)
 
 &nbsp;
 
@@ -319,9 +319,9 @@ Request guild members for a given guild. `GUILD_MEMBERS_CHUNK` events will be au
 
 |parameter|type|required|default|description|
 |-|-|-|-|-|
-|options|[RequestGuildMembersOptions](#RequestGuildMembersOptions)|yes|-|Request guild members payload with an additional timeout field|
+|options|[RequestGuildMembersOptions](#requestguildmembersoptions)|yes|-|Request guild members payload with an additional timeout field|
 
-**returns:** Promise\<[GuildMembersResult](#GuildMembersResult)\>
+**returns:** Promise\<[GuildMembersResult](#guildmembersresult)\>
 
 ```js
 await shard.requestGuildMembers({
@@ -339,7 +339,7 @@ Update the bot's status and/or presence for this shard. This method follows the 
 
 |parameter|type|required|default|description|
 |-|-|-|-|-|
-|presence|[UpdatePresenceOptions](#UpdatePresenceOptions)|yes|-|The presence payload|
+|presence|[UpdatePresenceOptions](#updatepresenceoptions)|yes|-|The presence payload|
 
 **returns:** Promise\<void\>
 
@@ -361,9 +361,9 @@ Update a voice connection or connect/disconnect from a voice channel. When conne
 
 |parameter|type|required|default|description|
 |-|-|-|-|-|
-|state|[UpdateVoiceStateOptions](#UpdateVoiceStateOptions)|yes|-|The voice state payload with additional timeout and wait_for_server fields|
+|state|[UpdateVoiceStateOptions](#updatevoicestateoptions)|yes|-|The voice state payload with additional timeout and wait_for_server fields|
 
-**returns:** Promise\<[VoiceStateResult](#VoiceStateResult)\>
+**returns:** Promise\<[VoiceStateResult](#voicestateresult)\>
 
 ```js
 await shard.updateVoiceState({
@@ -381,7 +381,7 @@ Send a raw gateway command. Each shard is allowed 115 gateway commands every 60 
 
 |parameter|type|required|default|description|
 |-|-|-|-|-|
-|data|[GatewayCommand](#GatewayCommand)|yes|-|Gateway command payload|
+|data|[GatewayCommand](#gatewaycommand)|yes|-|Gateway command payload|
 
 **returns:** Promise\<void\>
 
@@ -411,8 +411,8 @@ await shard.send({
 |id|number|no|0|Shard id|
 |total|number|no|id+1|Total shards|
 |large_threshold|number|no|-|Number of members for a guild to be considered "large"|
-|presence|[ShardPresence](#ShardPresence)|no|-|Initial presence for this shard|
-|properties|[ShardProperties](#ShardProperties)|no|[ShardProperties](#ShardProperties)|Tell discord about ourselves|
+|presence|[ShardPresence](#shardpresence)|no|-|Initial presence for this shard|
+|properties|[ShardProperties](#shardproperties)|no|[ShardProperties](#shardproperties)|Tell discord about ourselves|
 |version|number|no|9|Gateway version|
 |encoding|string|no|"json"|Gateway encoding, "json" or "etf" \*|
 |compression|number|no|0|Gateway compression level: 0, 1 or 2 \*\*|

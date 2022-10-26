@@ -20,7 +20,7 @@ Create a new rest client.
 
 |parameter|type|required|default|description|
 |-|-|-|-|-|
-|options|[RestClientOptions](#RestClientOptions)|yes|-|RestClient options|
+|options|[RestClientOptions](#restclientoptions)|yes|-|RestClient options|
 
 ```js
 const client = new RestClient({ token: "abc" })
@@ -83,9 +83,9 @@ Make a GET request to the Discord API.
 |parameter|type|required|default|description|
 |-|-|-|-|-|
 |path|string|yes|-|The url for this request|
-|options|[RequestOptions](#RequestOptions)|no|-|Additional options for this request, excluding path and method|
+|options|[RequestOptions](#requestoptions)|no|-|Additional options for this request, excluding path and method|
 
-**Returns:** [AbortablePromise](#AbortablePromise)\<[ApiResponse](#ApiResponse)\>
+**Returns:** [AbortablePromise](#abortablepromise)\<[ApiResponse](#apiresponse)\>
 
 ```js
 await client.get("/channels/9999/messages/77777").then(x => x.body.json)
@@ -100,9 +100,9 @@ Make a DELETE request to the Discord API.
 |parameter|type|required|default|description|
 |-|-|-|-|-|
 |path|string|yes|-|The url for this request|
-|options|[RequestOptions](#RequestOptions)|no|-|Additional options for this request, excluding path and method|
+|options|[RequestOptions](#requestoptions)|no|-|Additional options for this request, excluding path and method|
 
-**Returns:** [AbortablePromise](#AbortablePromise)\<[ApiResponse](#ApiResponse)\>
+**Returns:** [AbortablePromise](#abortablepromise)\<[ApiResponse](#apiresponse)\>
 
 ```js
 await client.delete("/channels/9999/messages/77777")
@@ -118,9 +118,9 @@ Make a POST request to the Discord API.
 |-|-|-|-|-|
 |path|string|yes|-|The endpoint url for this request|
 |body|object|yes|-|The request body for this request|
-|options|[RequestOptions](#RequestOptions)|no|-|Additional options for this request, excluding path, method and body|
+|options|[RequestOptions](#requestoptions)|no|-|Additional options for this request, excluding path, method and body|
 
-**Returns:** [AbortablePromise](#AbortablePromise)\<[ApiResponse](#ApiResponse)\>
+**Returns:** [AbortablePromise](#abortablepromise)\<[ApiResponse](#apiresponse)\>
 
 ```js
 await client.post("/channels/9999/messages", {
@@ -138,9 +138,9 @@ Make a PATCH request to the Discord API.
 |-|-|-|-|-|
 |path|string|yes|-|The endpoint url for this request|
 |body|object|yes|-|The request body for this request|
-|options|[RequestOptions](#RequestOptions)|no|-|Additional options for this request, excluding path, method and body|
+|options|[RequestOptions](#requestoptions)|no|-|Additional options for this request, excluding path, method and body|
 
-**Returns:** [AbortablePromise](#AbortablePromise)\<[ApiResponse](#ApiResponse)\>
+**Returns:** [AbortablePromise](#abortablepromise)\<[ApiResponse](#apiresponse)\>
 
 ```js
 await client.patch("/channels/9999/messages/5555", {
@@ -158,9 +158,9 @@ Make a PUT request to the Discord API.
 |-|-|-|-|-|
 |path|string|yes|-|The endpoint url for this request|
 |body|object|no|-|The request body for this request if applicable|
-|options|[RequestOptions](#RequestOptions)|no|-|Additional options for this request, excluding path, method and body|
+|options|[RequestOptions](#requestoptions)|no|-|Additional options for this request, excluding path, method and body|
 
-**Returns:** [AbortablePromise](#AbortablePromise)\<[ApiResponse](#ApiResponse)\>
+**Returns:** [AbortablePromise](#abortablepromise)\<[ApiResponse](#apiresponse)\>
 
 ```js
 await client.put("/channels/9999/pins/5555")
@@ -175,9 +175,9 @@ Make a GET request to the Discord CDN.
 |parameter|type|required|default|description|
 |-|-|-|-|-|
 |path|string|yes|-|The endpoint url for this request|
-|options|[RequestOptions](#RequestOptions)|no|-|Additional options for this request, excluding path and method|
+|options|[RequestOptions](#requestoptions)|no|-|Additional options for this request, excluding path and method|
 
-**Returns:** [AbortablePromise](#AbortablePromise)\<[ApiResponse](#ApiResponse)\>
+**Returns:** [AbortablePromise](#abortablepromise)\<[ApiResponse](#apiresponse)\>
 
 ```js
 await client.cdn("/attachments/55555/777777/a.png").then(x => x.body.buffer)
@@ -191,9 +191,9 @@ Make a raw request to the Discord API.
 
 |parameter|type|required|default|description|
 |-|-|-|-|-|
-|data|[RequestOptions](#RequestOptions)|yes|-|Options for this request|
+|data|[RequestOptions](#requestoptions)|yes|-|Options for this request|
 
-**Returns:** [AbortablePromise](#AbortablePromise)\<[ApiResponse](#ApiResponse)\>
+**Returns:** [AbortablePromise](#abortablepromise)\<[ApiResponse](#apiresponse)\>
 
 ```js
 await client.request({

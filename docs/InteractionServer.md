@@ -20,7 +20,7 @@ Create a new Interaction Server using your Discord application's public key.
 
 |parameter|type|required|default|description|
 |-|-|-|-|-|
-|options|[InteractionServerOptions](#InteractionServerOptions)|yes|-|InteractionServer options|
+|options|[InteractionServerOptions](#interactionserveroptions)|yes|-|InteractionServer options|
 
 ```js
 const server = new InteractionServer({ key: "huehuehue" })
@@ -34,13 +34,13 @@ const server = new InteractionServer({ key: "huehuehue" })
 
 ### interaction
 
-Emitted when a Discord Interaction is received. You must respond to the interaction by returning an [InteractionResponse](#InteractionResponse) object or an [InteractionFileResponse](#interactionfileresponse) object from inside the callback function (see examples at the end of the page). If multiple interaction listeners are created, the fastest valid response will be used and all others will be discarded.
+Emitted when a Discord Interaction is received. You must respond to the interaction by returning an [InteractionResponse](#interactionresponse) object or an [InteractionFileResponse](#interactionfileresponse) object from inside the callback function (see examples at the end of the page). If multiple interaction listeners are created, the fastest valid response will be used and all others will be discarded.
 
 IMPORTANT: this event has to be responded to as fast as possible. Discord requires a response to be returned in under 3 seconds including any delays caused by the network, therefore the user should be careful with async callbacks and defer when needed.
 
 |parameter|type|description|
 |-|-|-|
-|interaction|[InteractionData](#InteractionData)|The interaction payload|
+|interaction|[InteractionData](#interactiondata)|The interaction payload|
 
 &nbsp;
 

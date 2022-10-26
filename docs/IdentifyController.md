@@ -20,7 +20,7 @@ Create a new IdentifyController.
 
 |parameter|type|required|default|description|
 |-|-|-|-|-|
-|options|[IdentifyControllerOptions](#IdentifyControllerOptions)|yes|-|IdentifyController options|
+|options|[IdentifyControllerOptions](#identifycontrolleroptions)|yes|-|IdentifyController options|
 
 ```js
 const controller = new IdentifyController({ token: "owhef2y3n81830x1" })
@@ -169,7 +169,7 @@ await controller.refreshSessionLimits();
 |shards|number|no|0|Total number of shards. If 0 or omitted, the recommended shard number given by Discord will be used|
 |shardDelay|number|no|5500|Minimum amount of time between each identify bucket in milliseconds (should never be lower than 5000)|
 |refreshDelay|number|no|600000|Minimum amount of time between each gateway fetch in milliseconds \*|
-|rest|[RestClient](RestClient.md) \| [RestClientOptions](RestClient.md#RestClientOptions)|no|-|An instance of `RestClient` or an options object to create a new one \*\*|
+|rest|[RestClient](RestClient.md) \| [RestClientOptions](RestClient.md#restclientoptions)|no|-|An instance of `RestClient` or an options object to create a new one \*\*|
 
 \* For most use cases fetching the gateway too often is a waste of resources as the session parameters are unlikely to change. But depending on your situation you might want to fetch it more often to keep it up-to-date. For example setting the refreshDelay to match the shardDelay will ensure the gateway will be always be re-fetched on every identify like most other libraries do.
 

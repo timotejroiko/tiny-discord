@@ -20,7 +20,7 @@ Create a new internal sharder.
 
 |parameter|type|required|default|description|
 |-|-|-|-|-|
-|options|[InternalSharderOptions](#InternalSharderOptions)|yes|-|Sharder options|
+|options|[InternalSharderOptions](#internalsharderoptions)|yes|-|Sharder options|
 
 ```js
 const sharder = new InternalSharder({
@@ -58,7 +58,7 @@ Emitted when a shard successfully identified and received a READY event.
 
 |parameter|type|description|
 |-|-|-|
-|data|[ShardReady](WebsocketShard.md#ShardReady)|READY event payload|
+|data|[ShardReady](WebsocketShard.md#shardready)|READY event payload|
 |id|number|The shard id|
 
 ```js
@@ -75,7 +75,7 @@ Emitted when a shard successfully resumed and received a RESUMED event.
 
 |parameter|type|description|
 |-|-|-|
-|data|[ShardResumed](WebsocketShard.md#ShardResumed)|RESUMED event payload with an addittional `replayed` field|
+|data|[ShardResumed](WebsocketShard.md#shardresumed)|RESUMED event payload with an addittional `replayed` field|
 |id|number|The shard id|
 
 ```js
@@ -120,7 +120,7 @@ Emitted when a shard receives a dispatch event. Dispatch events are also emitted
 
 |parameter|type|description|
 |-|-|-|
-|data|[ShardEvent](WebsocketShard.md#ShardEvent)|The raw event|
+|data|[ShardEvent](WebsocketShard.md#shardevent)|The raw event|
 |id|number|The shard id|
 
 ```js
@@ -207,7 +207,7 @@ The current identify queueing mechanism, either an instance of [IdentifyControll
 
 ### .connect()
 
-Spawn all shards and begin connecting. If `session_id` and `sequence` are defined in [InternalSharderOptions](#InternalSharderOptions).overrides, a resume will be attempted for those shard ids, otherwise a new identify will be requested. Resolves once all shards establish a websocket connection.
+Spawn all shards and begin connecting. If `session_id` and `sequence` are defined in [InternalSharderOptions](#internalsharderoptions).overrides, a resume will be attempted for those shard ids, otherwise a new identify will be requested. Resolves once all shards establish a websocket connection.
 
 **returns:** Promise\<void\>
 
@@ -267,9 +267,9 @@ const sessions = sharder.getCurrentSessions()
 |intents|number|yes|-|Your bot's intents|
 |total|number|yes if no ids|ids.length|Total number of shards|
 |ids|array\<number\>|yes if no total|[0...total&#x2011;1]|Array of shard ids managed by this sharder|
-|options|[ShardOptions](WebsocketShard.md#ShardOptions)|no|-|Additional options to be applied to all shards except token, intents and sessions|
-|overrides|{&#160;[id]:&#160;[ShardOptions](WebsocketShard.md#ShardOptions)&#160;}|no|-|Shard-specific option overrides. Use this to set sessions for each shard|
-|controller|[IdentifyController](IdentifyController.md) | [identifyHook](WebsocketShard.md#ShardOptions)|no|-|The identify queueing mechanism \*|
+|options|[ShardOptions](WebsocketShard.md#shardoptions)|no|-|Additional options to be applied to all shards except token, intents and sessions|
+|overrides|{&#160;[id]:&#160;[ShardOptions](WebsocketShard.md#shardoptions)&#160;}|no|-|Shard-specific option overrides. Use this to set sessions for each shard|
+|controller|[IdentifyController](IdentifyController.md) | [identifyHook](WebsocketShard.md#shardoptions)|no|-|The identify queueing mechanism \*|
 
 \* If neither an existing controller nor an identifyHook function is given, a new IdentifyController will be created to manage this sharder.
 
