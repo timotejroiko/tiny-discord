@@ -30,7 +30,7 @@ class WebsocketShard extends EventEmitter {
 		this.url = typeof options.url === "string" ? options.url.includes("://") ? options.url.split("://")[1] : options.url : "gateway.discord.gg";
 		this.session = "session" in options && typeof options.session === "string" ? options.session : null;
 		this.sequence = "sequence" in options && Number(options.sequence) || 0;
-		this.resumeUrl = "resumeUrl" in options && typeof options.resumeUrl === "string" ? options.resumeUrl : null;
+		this.resumeUrl = "resumeUrl" in options && typeof options.resumeUrl === "string" ? options.resumeUrl.includes("://") ? options.resumeUrl.split("://")[1] : options.resumeUrl : null;
 		this.identifyHook = typeof options.identifyHook === "function" ? options.identifyHook : null;
 
 		/** @private */ this._timestamps = {
@@ -760,7 +760,7 @@ class WebsocketShard extends EventEmitter {
 				switch(t) {
 					case "READY": {
 						this.session = d.session_id;
-						this.resumeUrl = d.resume_gateway_url;
+						this.resumeUrl = typeof d.resume_gateway_url === "string" ? d.resume_gateway_url.includes("://") ? d.resume_gateway_url.split("://")[1] : d.resume_gateway_url : null;
 						this._timestamps.readyAt = this._timestamps.identifiedAt = Date.now();
 						this._promises.ready?.resolve();
 						this.emit("debug", `Ready! Session = ${d.session_id}`);

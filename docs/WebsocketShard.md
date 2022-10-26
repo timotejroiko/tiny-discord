@@ -419,6 +419,7 @@ await shard.send({
 |url|string|no|"gateway.discord.gg"|Gateway url as given by /gateway/bot (without protocol)|
 |session|string|no|-|Existing session id to resume \*\*\*|
 |sequence|number|no|0|Existing sequence to resume \*\*\*|
+|resumeUrl|string|no|-|url to use when resuming \*\*\*|
 |identifyHook|(id) => { time, ask? }|no|-|A function that is called before every identify \*\*\*\*|
 
 \* Etf can be up to 10% smaller than json but about 30% slower to unpack.  
@@ -432,7 +433,8 @@ Generally transport compression is recommended, its faster and smaller than pack
 
 \*\*\* If both session and sequence are defined, the shard will attempt to resume.  
 If resuming is successful, the `resumed` event will be fired instead of `ready`.  
-If resuming is unsuccessful, the shard will clear the session data and restart with a new session.
+If resuming is unsuccessful, the shard will clear the session data and start a new session instead.
+Since september 2022 there is also a separate gateway url for resuming, if not provided the normal url will be used instead but Discord has warned that not using the proper url may lead to increased disconnections.
 
 \*\*\*\* If set, the identifyHook function will be called every time the shard needs to identify. The function can be asynchronous and must return an object containing a `time` field and optionally an `ask` field. If `time` is set to 0 or not an integer, the shard will identify immediately. If `time` is set to a positive integer, the shard will wait `time` milliseconds before identifying. If `ask` is set to true, the shard will wait `time` milliseconds and then call the identifyHook function again.
 
