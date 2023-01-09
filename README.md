@@ -54,12 +54,6 @@ Full benchmark can be found here: [https://github.com/timotejroiko/discord-webso
 
 <p align="center">Special thanks to our sponsors!</p>
 
-<p align="center">
-  <a href="https://wickbot.com">
-    <img src="https://images.weserv.nl/?url=https://styles.redditmedia.com/t5_5c2f5p/styles/communityIcon_9v851jopzkz71.png&h=100&w=100&fit=cover&mask=circle&maxage=7d" alt="Wick Bot">
-  </a>
-</p>
-
 ## LICENSE
 
 This project is licensed under MIT, which basically means you can do anything you want with it, i only ask that you include a small copyright notice and a link to this repo in a comment in your source code.
