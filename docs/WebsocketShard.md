@@ -1,12 +1,12 @@
 # WebsocketShard
 
-A barebones gateway shard to receive real-time events from discord.
+A bare-bones gateway shard to receive real-time events from discord.
 
-Supports all gateway features including etf encoding and zlib compression, and also provides an identify hook for controlling login queues (ie: sharding / clustering / etc).
+Supports all gateway features including etf encoding and zlib compression and also provides an identify-hook for controlling login queues (i.e.: sharding / clustering / etc.).
 
-Shard-specific gateway command rate limits are accounted for and requests will be rejected before they are sent if hit.
+Shard-specific gateway command rate limits are accounted for and requests will be rejected before they are sent if the limit is reached.
 
-Automatic reconnection is done for resume requests, network issues and all resumable close codes. Unresumable close codes like "invalid intents" must be handled by the user (see the `close` event). If your network goes completely offline, the shard will enter offline mode and automatically attempt to reconnect every 10 seconds forever. Manually calling the `close` or `connect` methods while in offline mode will disable it and stop the reconnect loop.
+Automatic reconnection is done for resumes, network issues and all resumable close codes. Non-resumable close codes like "invalid intents" must be handled by the user (see the `close` event). If your network goes completely offline, the shard will enter offline mode and automatically attempt to reconnect every 10 seconds forever. Manually calling the `close` or `connect` methods while in offline mode will disable it and stop the loop.
 
 &nbsp;
 
@@ -35,31 +35,37 @@ const shard = new WebsocketShard({
 
 ### ready
 
-Emitted when the READY event is received.
+Emitted when the shard becomes ready, either after identifying or after resuming. A type field is given to determine the event type.
 
 |parameter|type|description|
 |-|-|-|
-|data|[ShardReady](#shardready)|READY event payload|
+|data|[ReadyEvent](#readyevent)|READY event payload|
 
 ```js
 shard.on("ready", data => {
-  console.log(`Shard ${shard.id} ready - ${data.guilds.length} guilds`);
+  if(data.type === "identify") {
+    console.log(`Shard ${shard.id} ready - ${data.data.guilds.length} guilds`);
+  } else {
+    console.log(`Shard ${shard.id} resumed`);
+  }
 })
 ```
 
 &nbsp;
 
-### resumed
+### close
 
-Emitted when the RESUMED event is received.
+Emitted when the shard disconnects with a non-resumable close code and will not reconnect. The error message will contain the close code and reason if available. Non-resumable close codes are caused by issues that require fixing, therefore they should be checked and fixed before reconnecting to prevent spamming the api.
+
+To log other types of disconnections and reconnections use the debug event.
 
 |parameter|type|description|
 |-|-|-|
-|data|[ShardResumed](#shardresumed)|RESUMED event payload with an addittional `replayed` field|
+|reason|Error|Reason for the disconnection|
 
 ```js
-shard.on("resumed", data => {
-  console.log(`resumed - replayed ${data.replayed} events`);
+shard.on("close", async error => {
+  console.log(error)
 })
 ```
 
@@ -67,7 +73,7 @@ shard.on("resumed", data => {
 
 ### event
 
-Emitted when dispatch events are received.
+Emitted when dispatch events are received. This is a raw discord event.
 
 |parameter|type|description|
 |-|-|-|
@@ -81,24 +87,6 @@ shard.on("event", data => {
 
 &nbsp;
 
-### close
-
-Emitted when the shard disconnects with an unresumable close code and will not reconnect. The error message will contain the close code and reason if available. Unresumable close codes are caused by issues that require fixing, therefore they should be checked and fixed before reconnecting to prevent spamming the api.
-
-To log other types of disconnections and reconnections use the debug event.
-
-|parameter|type|description|
-|-|-|-|
-|reason|Error|Reason for the disconnection|
-
-```js
-shard.on("close", async error => {
-  console.log(error)
-});
-```
-
-&nbsp;
-
 ### debug
 
 Internal debugging information including disconnections and reconnections.
@@ -106,6 +94,12 @@ Internal debugging information including disconnections and reconnections.
 |parameter|type|description|
 |-|-|-|
 |data|string|Debug information|
+
+```js
+shard.on("debug", data => {
+  console.log(data);
+})
+```
 
 &nbsp;
 
@@ -243,17 +237,9 @@ The gateway url used by this shard.
 
 ### session
 
-The shard's current session id.
+Getter for the shard's current session data.
 
-**type:** string
-
-&nbsp;
-
-### sequence
-
-The shard's current sequence number.
-
-**type:** number
+**type:** [SessionData](#sessiondata)
 
 &nbsp;
 
@@ -262,6 +248,22 @@ The shard's current sequence number.
 The identifyHook function if availble.
 
 **type:** function | null
+
+&nbsp;
+
+### etfUseBigint
+
+Whether the shard should return BigInt snowflakes when using Etf encoding.
+
+**type:** boolean
+
+&nbsp;
+
+### disabledEvents
+
+Array of events that are being ignored.
+
+**type:** array\<string\>
 
 &nbsp;
 
@@ -417,26 +419,39 @@ await shard.send({
 |encoding|string|no|"json"|Gateway encoding, "json" or "etf" \*|
 |compression|number|no|0|Gateway compression level: 0, 1 or 2 \*\*|
 |url|string|no|"gateway.discord.gg"|Gateway url as given by /gateway/bot (without protocol)|
-|session|string|no|-|Existing session id to resume \*\*\*|
-|sequence|number|no|0|Existing sequence to resume \*\*\*|
-|resumeUrl|string|no|-|url to use when resuming \*\*\*|
+|session|[SessionData](#sessiondata)|no|-|Existing session data to resume \*\*\*|
 |identifyHook|(id) => { time, ask? }|no|-|A function that is called before every identify \*\*\*\*|
+|etfUseBigint|boolean|no|false|Whether to keep snowflakes as BigInt when using Etf encoding \*\*\*\*\*|
+|disabledEvents|array\<string\>|no|-|List of gateway events to disable \*\*\*\*\*\*|
 
-\* Etf can be up to 10% smaller than json but about 30% slower to unpack.  
-Etf also natively supports bigints while json doesnt, therefore discord snowflakes are returned as bigints instead of strings to avoid needless conversions.  
-Generally json encoding is recommended unless using bigints and saving bandwidth is a priority.
+\* Etf can be slightly smaller than json at times but its about 25% slower to unpack.  
+When using Etf, discord sends snowflakes as 64bit integers instead of strings, you can toggle receiving them as BigInt using the `etfUseBigint` option.  
+Generally json encoding is recommended unless you're using BigInt snowflakes.
 
 \*\* 0 = no compression, 1 = packet compression, 2 = transport compression.  
-Packet compression is about 80% smaller but about 30% slower to unpack.  
-Transport compression is about 85% smaller but about 20% slower to unpack.  
-Generally transport compression is recommended, its faster and smaller than packet compression and the bandwith savings are very significant.
+Packet compression only compresses large data, small data remains uncompressed. Large data becomes about 80% smaller and about 30% slower to unpack.  
+Transport compression compresses all data, making it about 85% smaller but about 25% slower to unpack.  
+Generally compression is recommended as the bandwidth savings are very significant, with transport compression being preferable as it's the most efficient of the two.
 
-\*\*\* If both session and sequence are defined, the shard will attempt to resume.  
-If resuming is successful, the `resumed` event will be fired instead of `ready`.  
-If resuming is unsuccessful, the shard will clear the session data and start a new session instead.
-Since september 2022 there is also a separate gateway url for resuming, if not provided the normal url will be used instead but Discord has warned that not using the proper url may lead to increased disconnections.
+\*\*\* If set, the shard will attempt to resume. If it fails to resume, the session data is cleaned and the shard automatically attempts a new identify.
 
 \*\*\*\* If set, the identifyHook function will be called every time the shard needs to identify. The function can be asynchronous and must return an object containing a `time` field and optionally an `ask` field. If `time` is set to 0 or not an integer, the shard will identify immediately. If `time` is set to a positive integer, the shard will wait `time` milliseconds before identifying. If `ask` is set to true, the shard will wait `time` milliseconds and then call the identifyHook function again.
+
+\*\*\*\*\* When using Etf encoding, discord sends snowflakes and 64bit integers instead of strings, which in js are deserialized to BigInt. By default they are converted back to string after parsing, but keeping them as BigInt may provide a small performance boost and decrease memory usage.
+
+\*\*\*\*\*\* When this option is used, the shard will attempt to early-detect events by byte-matching so that disabled events are found and discarded before being parsed, increasing discard performance by up to 1000%. Non-discarded events have a slight performance impact from this extra check, usually less than 5%. Use cases include using the presences intent but not actually needing `PRESENCE_UPDATE` events (for fetching members with presences). Event names should use `SCREAMING_SNAKE_CASE` according to the Discord API.
+
+&nbsp;
+
+### SessionData
+
+|parameter|type|description|
+|-|-|-|
+|session_id|string|Existing session id to resume|
+|sequence|number|Existing sequence to resume|
+|resume_url|string|url to use when resuming|
+
+Since September 2022 there is a separate gateway url for resuming, if not provided the normal url will be used instead, but Discord has warned that not using the proper url may lead to increased disconnections.
 
 &nbsp;
 
@@ -458,6 +473,15 @@ Since september 2022 there is also a separate gateway url for resuming, if not p
 |parameter|type|description|
 |-|-|-|
 |replayed|number|Number of events that were re-sent after resuming|
+
+&nbsp;
+
+### ReadyEvent
+
+|parameter|type|description|
+|-|-|-|
+|type|string|Event type, either identify or resume|
+|data|[ShardReady](#shardready) \| [ShardResumed](#shardresumed)|Event data, either ready data or resume data|
 
 &nbsp;
 

@@ -2,11 +2,11 @@
 
 A basic implementation of an internal shard manager. This class creates and manages instances of the [WebsocketShard](WebsocketShard.md) component from this library.
 
-Supports concurrent logins (large bot sharding / max_concurrency) and shards provide hooks for externally controlled login queues (ie: process sharding / clustering / etc).
+Supports concurrent logins (large bot sharding / max_concurrency) and shards provide hooks for externally controlled login queues (i.e.: process sharding / clustering / etc.).
 
-Once spawned, shards will automatically attempt to resume or reconnect on network failures, invalid sessions and resumable close codes. Shards that close due to unresumable close codes will emit a `close` event and will not reconnect. If your network goes completely offline, the shards will attempt to reconnect every 10 seconds forever unless manually closed. Other types of disconnections and reconnections can be monitored via the `debug` event.
+Once spawned, shards will automatically attempt to resume or reconnect on network failures, invalid sessions and resumable close codes. Shards that close due to non-resumable close codes will emit a `close` event and will not reconnect. If your network goes completely offline, the shards will attempt to reconnect every 10 seconds forever unless manually closed. Other types of disconnections and reconnections can be monitored via the `debug` event.
 
-The InternalSharder does not connect to the rest api by itself if user supplies a valid identify queueing mechanism, otherwise the [IdentifyController](IdentifyController.md) component from this library will be used to obtain the gateway information from the rest api and to queue identifies.
+The InternalSharder does not connect to the rest api by itself if user supplies a valid identify queuing mechanism, otherwise the [IdentifyController](IdentifyController.md) component from this library will be used to obtain the gateway information from the rest api and to queue identifies.
 
 &nbsp;
 
@@ -58,29 +58,14 @@ Emitted when a shard successfully identified and received a READY event.
 
 |parameter|type|description|
 |-|-|-|
-|data|[ShardReady](WebsocketShard.md#shardready)|READY event payload|
+|data|[ReadyEvent](WebsocketShard.md#readyevent)|READY event payload|
 |id|number|The shard id|
 
 ```js
 sharder.on("ready", (data, id) => {
-  console.log(`Shard ${id} ready - ${data.guilds.length} guilds`);
-})
-```
-
-&nbsp;
-
-### resumed
-
-Emitted when a shard successfully resumed and received a RESUMED event.
-
-|parameter|type|description|
-|-|-|-|
-|data|[ShardResumed](WebsocketShard.md#shardresumed)|RESUMED event payload with an addittional `replayed` field|
-|id|number|The shard id|
-
-```js
-sharder.on("resumed", (data, id) => {
-  console.log(`shard ${id} resumed - replayed ${data.replayed} events`);
+  if(data.type === "identify") {
+    console.log(`Shard ${id} ready - ${data.data.guilds.length} guilds`);
+  }
 })
 ```
 
@@ -245,7 +230,7 @@ sharder.getAveragePing()
 
 Get the current session ids, sequence numbers and resume urls from all shards. You can use this data to resume after a process restart. It is recommended to close the the sharder first to prevent the sequence number from changing.
 
-**returns:** { [id], { session: string, sequence: number, resumeUrl: string } }
+**returns:** { [id], [SessionData](WebsocketShard.md#sessiondata) }
 
 ```js
 await sharder.close()

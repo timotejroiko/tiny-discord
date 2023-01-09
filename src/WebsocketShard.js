@@ -4,7 +4,7 @@
 const { EventEmitter } = require("events");
 const { request } = require("https");
 const { randomBytes, createHash } = require("crypto");
-const { createInflate, inflateSync, constants: { Z_SYNC_FLUSH } } = require("zlib");
+const { createInflate } = require("zlib");
 const { setTimeout, setInterval } = require("timers");
 
 class WebsocketShard extends EventEmitter {
@@ -28,10 +28,22 @@ class WebsocketShard extends EventEmitter {
 		this.encoding = typeof options.encoding === "string" && options.encoding.toLowerCase() === "etf" ? "etf" : "json";
 		this.compression = [0, 1, 2].includes(options.compression = /** @type {0 | 1 | 2} */ (Number(options.compression))) ? options.compression : 0;
 		this.url = typeof options.url === "string" ? options.url.includes("://") ? options.url.split("://")[1] : options.url : "gateway.discord.gg";
-		this.session = "session" in options && typeof options.session === "string" ? options.session : null;
-		this.sequence = "sequence" in options && Number(options.sequence) || 0;
-		this.resumeUrl = "resumeUrl" in options && typeof options.resumeUrl === "string" ? options.resumeUrl.includes("://") ? options.resumeUrl.split("://")[1] : options.resumeUrl : null;
+		this.disabledEvents = Array.isArray(options.disabledEvents) ? options.disabledEvents : null;
+		this.etfUseBigint = Boolean(options.etfUseBigint);
 		this.identifyHook = typeof options.identifyHook === "function" ? options.identifyHook : null;
+
+		/** @private @type {{ id: string?, seq: number, url: string? }} */ this._session = {
+			id: null,
+			seq: 0,
+			url: null
+		};
+
+		if(options.session) {
+			const { session_id, sequence, resume_url } = options.session;
+			this._session.id = typeof session_id === "string" ? session_id : null;
+			this._session.seq = Number(sequence) || 0;
+			this._session.url = typeof resume_url === "string" ? resume_url.includes("://") ? resume_url.split("://")[1] : resume_url : null;
+		}
 
 		/** @private */ this._timestamps = {
 			lastPacket: 0,
@@ -65,7 +77,7 @@ class WebsocketShard extends EventEmitter {
 
 		/** @private @type {Record<string, { resolve: () => void, received: number, members: any[], presences: any[], not_found: any[] }>} */ this._memberChunks = {};
 		/** @private @type {Record<string, { resolve: () => void, state: Record<string, any>?, server: Record<string, any>? }>} */ this._voiceChunks = {};
-		/** @private @type {(import("zlib").Inflate & { _c: Function, _h: Function, _hc: Function, _v: () => void })?} */ this._zlib = null;
+		/** @private @type {zlib?} */ this._zlib = null;
 		/** @private @type {import("net").Socket?} */ this._socket = null;
 
 		/**
@@ -73,8 +85,7 @@ class WebsocketShard extends EventEmitter {
 		 * 		((event: "event", callback: (data: ShardEvent) => void) => this) &
 		 * 		((event: "debug", callback: (data: string) => void) => this) &
 		 * 		((event: "close", callback: (data?: Error) => void) => this) &
-		 * 		((event: "ready", callback: (data: ShardReady) => void) => this) &
-		 * 		((event: "resumed", callback: (data: ShardResumed) => void) => this)
+		 * 		((event: "ready", callback: (data: ReadyEvent) => void) => this)
 		 * )}
 		 */
 		this.on;
@@ -103,6 +114,14 @@ class WebsocketShard extends EventEmitter {
 		if(this._timers.offline) { return 4; } // offline
 		if(!this._socket) { return 5; } // closed
 		return 0; // ready
+	}
+
+	get session() {
+		return {
+			session_id: this._session.id,
+			sequence: this._session.seq,
+			resume_url: this._session.url
+		};
 	}
 
 	/**
@@ -360,7 +379,7 @@ class WebsocketShard extends EventEmitter {
 		const compression = this.compression === 2 ? "&compress=zlib-stream" : "";
 		const path = `/?v=${this.version}&encoding=${this.encoding}${compression}`;
 		const req = request({
-			hostname: (this.session && this.resumeUrl) || this.url,
+			hostname: (this._session.id && this._session.url) || this.url,
 			path: path,
 			headers: {
 				"Connection": "Upgrade",
@@ -387,15 +406,8 @@ class WebsocketShard extends EventEmitter {
 				socket.on("close", this._onClose.bind(this));
 				socket.on("readable", this._onReadable.bind(this));
 				this._socket = socket;
-				if(this.compression === 2) {
-					const z = /** @type {NonNullable<typeof this._zlib>} */ (createInflate());
-					z._c = z.close;
-					// @ts-expect-error private / not typed
-					z._h = z._handle;
-					// @ts-expect-error private / not typed
-					z._hc = z._handle.close;
-					z._v = () => void 0;
-					this._zlib = z;
+				if(this.compression > 0) {
+					this._zlib = new zlib();
 				}
 				this.emit("debug", "Connected");
 				this._promises.connect?.resolve();
@@ -485,8 +497,8 @@ class WebsocketShard extends EventEmitter {
 			op: 6,
 			d: {
 				token: this.token,
-				session_id: this.session,
-				seq: this.sequence
+				session_id: this._session.id,
+				seq: this._session.seq
 			}
 		});
 	}
@@ -652,93 +664,71 @@ class WebsocketShard extends EventEmitter {
 	 * @private
 	 */
 	_processFrame(opcode, message) {
-		switch(opcode) {
-			case 1: {
-				const packet = JSON.parse(message.toString());
-				this._processMessage(packet);
-				break;
-			}
-			case 2: {
-				let packet;
-				if(this.compression === 2) {
-					const z = /** @type {NonNullable<typeof this._zlib>} */ (this._zlib);
-					let error;
-					let data;
-					// @ts-expect-error _handle is private / not typed
-					z.close = z._handle.close = z._v;
-					try {
-						// @ts-expect-error _processChunk is private / not typed
-						data = z._processChunk(message, Z_SYNC_FLUSH);
-					} catch(e) {
-						error = /** @type {Error} */ (e);
-					}
-					z.close = /** @type {typeof z.close} */ (z._c);
-					// @ts-expect-error _handle is private / not typed
-					z._handle = z._h;
-					// @ts-expect-error _handle is private / not typed
-					z._handle.close = z._hc;
-					// @ts-expect-error _events is private / not typed
-					z._events.error = void 0;
-					// @ts-expect-error _eventCount is private / not typed
-					z._eventCount--;
-					z.removeAllListeners("error");
-					const l = message.length;
-					if(data && (message[l - 4] !== 0 || message[l - 3] !== 0 || message[l - 2] !== 255 || message[l - 1] !== 255)) {
-						console.log(message, message.toString(), data, data.toString());
-						error = new Error("discord actually does send fragmented zlib messages. if you see this error let me know");
-					}
-					if(error) {
-						this.emit("debug", "Zlib error");
-						this.emit("debug", error);
-						this._initClose(4099, true);
-						return;
-					}
-					packet = this.encoding === "json" ? JSON.parse(data.toString()) : readETF(data, 1);
-				} else if(this.encoding === "json") {
-					const data = inflateSync(message);
-					packet = JSON.parse(data.toString());
-				} else if(this.compression === 1 && message[1] === 80) {
-					const data = inflateSync(message.slice(6));
-					packet = readETF(data, 0);
-				} else {
-					packet = readETF(message, 1);
-				}
-				this._processMessage(packet);
-				break;
-			}
-			case 8: {
-				const code = message.length > 1 ? (message[0] << 8) + message[1] : 0;
-				const reason = message.length > 2 ? message.slice(2).toString() : "";
-				this.emit("debug", `Received close frame with code: ${code} ${reason}`);
-				if(!this._promises.close) {
-					if([4004, 4010, 4011, 4012, 4013, 4014].includes(code)) {
-						const error = /** @type {Error & { code: number, reason: string }} */ (new Error(`Websocket closed with code ${code}`));
-						error.code = code;
-						error.reason = reason;
-						this._last.error = error;
-					} else {
-						if([1000, 4001, 4007, 4009].includes(code)) {
-							this.session = null;
-							this.sequence = 0;
+		if(opcode > 2) {
+			switch(opcode) {
+				case 8: {
+					const code = message.length > 1 ? (message[0] << 8) + message[1] : 0;
+					const reason = message.length > 2 ? message.slice(2).toString() : "";
+					this.emit("debug", `Received close frame with code: ${code} ${reason}`);
+					if(!this._promises.close) {
+						if([4004, 4010, 4011, 4012, 4013, 4014].includes(code)) {
+							const error = /** @type {Error & { code: number, reason: string }} */ (new Error(`Websocket closed with code ${code}`));
+							error.code = code;
+							error.reason = reason;
+							this._last.error = error;
+						} else {
+							if([1000, 4001, 4007, 4009].includes(code)) {
+								this._session.id = null;
+								this._session.seq = 0;
+								this._session.url = null;
+							}
+							this._initConnect();
 						}
-						this._initConnect();
+						if(code !== 4099) {
+							this._write(message.slice(0, 2), 8); // echo close code
+						}
 					}
-					if(code !== 4099) {
-						this._write(message.slice(0, 2), 8); // echo close code
-					}
+					break;
 				}
-				break;
+				case 9: {
+					this.emit("debug", "Received ping frame, responding with pong");
+					this._write(message, 10);
+					break;
+				}
+				case 10: {
+					this.emit("debug", "Received pong frame");
+					if(this._promises.ping) { this._promises.ping.resolve(); }
+					break;
+				}
 			}
-			case 9: {
-				this.emit("debug", "Received ping frame, responding with pong");
-				this._write(message, 10);
-				break;
+		} else {
+			let data = message;
+			if(opcode === 2) {
+				const z = /** @type {NonNullable<typeof this._zlib>} */ (this._zlib);
+				try {
+					if(this.compression === 2) {
+						data = z.run(message);
+					} else if(this.encoding === "json") {
+						data = z.run(message);
+						z.reset();
+					} else if(this.compression === 1 && message[1] === 80) {
+						data = z.run(message.slice(6));
+						z.reset();
+					}
+				} catch(e) {
+					this.emit("debug", "Zlib error");
+					this.emit("debug", e);
+					this._initClose(4099, true);
+					return;
+				}
+				
 			}
-			case 10: {
-				this.emit("debug", "Received pong frame");
-				if(this._promises.ping) { this._promises.ping.resolve(); }
-				break;
+			if(this.disabledEvents !== null) {
+				const ev = this.encoding === "json" ? peekJSON(data) : peekETF(data);
+				if(ev && this.disabledEvents.includes(ev)) { return; }
 			}
+			const json = this.encoding === "json" ? JSON.parse(data.toString()) : readETF(data, this.etfUseBigint);
+			this._processMessage(json);
 		}
 	}
 
@@ -749,8 +739,8 @@ class WebsocketShard extends EventEmitter {
 	 */
 	_processMessage(data) {
 		this._timestamps.lastPacket = Date.now();
-		if(data.s > this.sequence) {
-			this.sequence = data.s;
+		if(data.s > this._session.seq) {
+			this._session.seq = data.s;
 			if(this._last.replayed !== null) { this._last.replayed++; }
 		}
 		switch(data.op) {
@@ -759,12 +749,15 @@ class WebsocketShard extends EventEmitter {
 				const d = data.d;
 				switch(t) {
 					case "READY": {
-						this.session = d.session_id;
-						this.resumeUrl = typeof d.resume_gateway_url === "string" ? d.resume_gateway_url.includes("://") ? d.resume_gateway_url.split("://")[1] : d.resume_gateway_url : null;
+						this._session.id = d.session_id;
+						this._session.url = typeof d.resume_gateway_url === "string" ? d.resume_gateway_url.includes("://") ? d.resume_gateway_url.split("://")[1] : d.resume_gateway_url : null;
 						this._timestamps.readyAt = this._timestamps.identifiedAt = Date.now();
 						this._promises.ready?.resolve();
-						this.emit("debug", `Ready! Session = ${d.session_id}`);
-						this.emit("ready", d);
+						this.emit("debug", `Received READY event! Session = ${d.session_id}`);
+						this.emit("ready", {
+							type: "identify",
+							data: d
+						});
 						return;
 					}
 					case "RESUMED": {
@@ -772,8 +765,11 @@ class WebsocketShard extends EventEmitter {
 						this._last.replayed = null;
 						this._timestamps.readyAt = Date.now();
 						this._promises.ready?.resolve();
-						this.emit("debug", `Resumed! Session = ${this.session}, replayed = ${d.replayed}`);
-						this.emit("resumed", d);
+						this.emit("debug", `Resumed! Session = ${this._session.id}, replayed = ${d.replayed}`);
+						this.emit("ready", {
+							type: "resume",
+							data: d
+						});
 						return;
 					}
 					case "GUILD_MEMBERS_CHUNK": {
@@ -808,7 +804,7 @@ class WebsocketShard extends EventEmitter {
 			}
 			case 1: {
 				this.emit("debug", "Received heartbeat request, responding with heartbeat");
-				this.send({ op: 1, d: this.sequence });
+				this.send({ op: 1, d: this._session.seq });
 				break;
 			}
 			case 7: {
@@ -821,9 +817,9 @@ class WebsocketShard extends EventEmitter {
 				if(data.d) {
 					this._resume();
 				} else {
-					this.session = null;
-					this.sequence = 0;
-					this.resumeUrl = null;
+					this._session.id = null;
+					this._session.seq = 0;
+					this._session.url = null;
 					setTimeout(() => this._initClose(4099, true), Math.floor(Math.random() * 4000) + 1000);
 				}
 				break;
@@ -835,7 +831,7 @@ class WebsocketShard extends EventEmitter {
 				this._timers.heartbeat = setTimeout(() => {
 					this._timestamps.lastHeartbeat = Date.now();
 					this.emit("debug", "Sending heartbeat");
-					this.send({ op: 1, d: this.sequence });
+					this.send({ op: 1, d: this._session.seq });
 					this._timers.heartbeat = setInterval(() => {
 						if(this._timestamps.lastHeartbeat > this._timestamps.lastAck) {
 							this.emit("debug", "Did not receive an Ack, attempting to reconnect");
@@ -843,11 +839,11 @@ class WebsocketShard extends EventEmitter {
 						} else {
 							this._timestamps.lastHeartbeat = Date.now();
 							this.emit("debug", "Sending heartbeat");
-							this.send({ op: 1, d: this.sequence });
+							this.send({ op: 1, d: this._session.seq });
 						}
 					}, interval);
 				}, timeout);
-				if(this.session && this.sequence) {
+				if(this._session.id && this._session.seq) {
 					this._resume();
 				} else {
 					this._identify();
@@ -924,23 +920,22 @@ function readRange(socket, index, bytes) {
 /**
  * 
  * @param {Buffer} data 
- * @param {number} start 
  */
-function readETF(data, start) {
+function readETF(data, useBigint = false) {
+	let x = data[0] === 131 ? 1 : 0;
 	/** @type {DataView} */ let view;
-	let x = start;
 	/** @type {() => any} */ const loop = () => {
 		const type = data[x++];
 		switch(type) {
-			case 97: {
+			case 97: { // small int
 				return data[x++];
 			}
-			case 98: {
+			case 98: { // int
 				const int = data.readInt32BE(x);
 				x += 4;
 				return int;
 			}
-			case 100: {
+			case 100: { // atom
 				const length = data.readUInt16BE(x);
 				let atom = "";
 				if(length > 30) {
@@ -958,7 +953,7 @@ function readETF(data, start) {
 				if(atom === "false") { return false; }
 				return atom;
 			}
-			case 108: case 106: {
+			case 108: case 106: { // list
 				const array = [];
 				if(type === 108) {
 					const length = data.readUInt32BE(x);
@@ -970,7 +965,7 @@ function readETF(data, start) {
 				}
 				return array;
 			}
-			case 107: {
+			case 107: { // string
 				const array = [];
 				const length = data.readUInt16BE(x);
 				x += 2;
@@ -979,7 +974,7 @@ function readETF(data, start) {
 				}
 				return array;
 			}
-			case 109: {
+			case 109: { // binary
 				const length = data.readUInt32BE(x);
 				let str = "";
 				if(length > 30) {
@@ -1004,7 +999,7 @@ function readETF(data, start) {
 				x += length;
 				return str;
 			}
-			case 110: {
+			case 110: { // bigint
 				if(!view) { view = new DataView(data.buffer, data.byteOffset, data.byteLength); }
 				const length = data[x++];
 				const sign = data[x++];
@@ -1027,9 +1022,10 @@ function readETF(data, start) {
 					}
 				}
 				x += length;
-				return sign ? -num : num;
+				if(sign) { num = -num; }
+				return useBigint ? num : num.toString();
 			}
-			case 116: {
+			case 116: { // object
 				/** @type {Record<string, any>} */ const obj = {};
 				const length = data.readUInt32BE(x);
 				x += 4;
@@ -1050,7 +1046,7 @@ function readETF(data, start) {
  * @param {*} data 
  */
 function writeETF(data) {
-	const b = Buffer.allocUnsafe(1 << 12);
+	const b = /** @type {Buffer & { latin1Write: Buffer["write"], utf8Write: Buffer["write"] }} */ (Buffer.allocUnsafe(1 << 12));
 	b[0] = 131;
 	let i = 1;
 	/** @type {(obj: any) => any} */ const loop = (obj) => {
@@ -1060,12 +1056,10 @@ function writeETF(data) {
 				b[i++] = 100;
 				if(obj) {
 					b.writeUInt16BE(4, i);
-					// @ts-expect-error latin1Write is not documented for some reason
 					b.latin1Write("true", i += 2);
 					i += 4;
 				} else {
 					b.writeUInt16BE(5, i);
-					// @ts-expect-error latin1Write is not documented for some reason
 					b.latin1Write("false", i += 2);
 					i += 5;
 				}
@@ -1075,7 +1069,6 @@ function writeETF(data) {
 				const length = Buffer.byteLength(obj);
 				b[i++] = 109;
 				b.writeUInt32BE(length, i);
-				// @ts-expect-error utf8Write is not documented for some reason
 				b.utf8Write(obj, i += 4);
 				i += length;
 				break;
@@ -1118,7 +1111,6 @@ function writeETF(data) {
 				if(obj === null) {
 					b[i++] = 100;
 					b.writeUInt16BE(3, i);
-					// @ts-expect-error latin1Write is not documented for some reason
 					b.latin1Write("nil", i += 2);
 					i += 3;
 				} else if(Array.isArray(obj)) {
@@ -1149,6 +1141,80 @@ function writeETF(data) {
 	return Buffer.from(b.slice(0, i));
 }
 
+/**
+ * 
+ * @param {Buffer} a 
+ * @param {number} i 
+ * @returns 
+ */
+function peekJSON(a, i = 0) {
+	if(a[i+0] === 123 && a[i+1] === 34 && a[i+2] === 116 && a[i+3] === 34 && a[i+4] === 58 && a[i+5] === 34) {
+		const end = a.indexOf(34, i+6);
+		// @ts-expect-error latin1Slice is private
+		const ev = a.latin1Slice(i+6, end);
+		if(["READY", "RESUMED", "GUILD_MEMBERS_CHUNK", "VOICE_STATE_UPDATE", "VOICE_SERVER_UPDATE"].includes(ev)) {
+			return false;
+		}
+		return ev;
+	}
+	return false;
+}
+
+/**
+ * 
+ * @param {Buffer} a 
+ * @returns 
+ */
+function peekETF(a) {
+	const l = a.length;
+	for(let i = l - 1; i > l - 50; i--) {
+		if(a[i] === 116 && a[i-1] === 1 && a[i-2] === 0 && a[i-3] === 100 && a[i+1] === 100 && a[i+2] === 0) {
+			const size = a[i+3];
+			// @ts-expect-error latin1Slice is private
+			const ev = a.latin1Slice(i+4, i+4+size);
+			if(["nil", "READY", "RESUMED", "GUILD_MEMBERS_CHUNK", "VOICE_STATE_UPDATE", "VOICE_SERVER_UPDATE"].includes(ev)) {
+				return false;
+			}
+			return ev;
+		}
+	}
+	return false;
+}
+
+class zlib {
+	constructor() {
+		this.z = /** @type {import("zlib").Inflate & { _processChunk: (message: Buffer, flag: number) => Buffer; _handle: Record<String, any>; _events: Record<String, any>; _eventsCount: number }} */ (createInflate());
+		this.c = this.z.close;
+		this.h = this.z._handle;
+		this.hc = this.h.close;
+		this.e = this.z._events;
+		this.v = () => void 0;
+	}
+	/**
+	 * 
+	 * @param {Buffer} message 
+	 */
+	run(message) {
+		const { z, c, h, hc, v, e } = this;
+		z.close = h.close = v;
+		try {
+			return z._processChunk(message, 2);
+		} finally {
+			z.close = c;
+			z._handle = h;
+			h.close = hc;
+			e.error = void 0;
+			z._eventsCount = 1;
+		}
+	}
+	reset() {
+		this.h.reset();
+	}
+	close() {
+		this.z.close();
+	}
+}
+
 module.exports = WebsocketShard;
 
 /**
@@ -1164,9 +1230,13 @@ module.exports = WebsocketShard;
  * 		encoding?: "etf" | "json",
  * 		compression?: 0 | 1 | 2,
  * 		url?: string,
- * 		session?: string,
- * 		sequence?: number,
- * 		resumeUrl?: string,
+ * 		session?: {
+ * 			session_id: string,
+ * 			sequence: number,
+ * 			resume_url: string
+ * 		}
+ * 		disabledEvents?: string[],
+ * 		etfUseBigint?: boolean,
  * 		identifyHook?: (id: number) => { canIdentify: boolean, retryAfter?: number } | Promise<{ canIdentify: boolean, retryAfter?: number }>
  * }} WebsocketShardOptions
  */
@@ -1258,6 +1328,13 @@ module.exports = WebsocketShard;
 
 /**
  * @typedef {{
+ * 		type: "identify" | "resume",
+ *		data: ShardReady | ShardResumed
+ * }} ReadyEvent
+ */
+
+/**
+ * @typedef {{
  * 		0: "ready",
  * 		1: "connecting",
  * 		2: "connected",
@@ -1266,3 +1343,64 @@ module.exports = WebsocketShard;
  * 		5: "closed"
  * }} StatusCodes
  */
+
+/**
+ * @typedef { "APPLICATION_COMMAND_PERMISSIONS_UPDATE"
+*  | "AUTO_MODERATION_RULE_CREATE"
+*  | "AUTO_MODERATION_RULE_UPDATE"
+*  | "AUTO_MODERATION_RULE_DELETE"
+*  | "AUTO_MODERATION_ACTION_EXECUTION"
+*  | "CHANNEL_CREATE"
+*  | "CHANNEL_UPDATE"
+*  | "CHANNEL_DELETE"
+*  | "CHANNEL_PINS_UPDATE"
+*  | "THREAD_CREATE"
+*  | "THREAD_UPDATE"
+*  | "THREAD_DELETE"
+*  | "THREAD_LIST_SYNC"
+*  | "THREAD_MEMBER_UPDATE"
+*  | "THREAD_MEMBERS_UPDATE"
+*  | "GUILD_CREATE"
+*  | "GUILD_UPDATE"
+*  | "GUILD_DELETE"
+*  | "GUILD_BAN_ADD"
+*  | "GUILD_BAN_REMOVE"
+*  | "GUILD_EMOJIS_UPDATE"
+*  | "GUILD_STICKERS_UPDATE"
+*  | "GUILD_INTEGRATIONS_UPDATE"
+*  | "GUILD_MEMBER_ADD"
+*  | "GUILD_MEMBER_REMOVE"
+*  | "GUILD_MEMBER_UPDATE"
+*  | "GUILD_MEMBERS_CHUNK"
+*  | "GUILD_ROLE_CREATE"
+*  | "GUILD_ROLE_UPDATE"
+*  | "GUILD_ROLE_DELETE"
+*  | "GUILD_SCHEDULED_EVENT_CREATE"
+*  | "GUILD_SCHEDULED_EVENT_UPDATE"
+*  | "GUILD_SCHEDULED_EVENT_DELETE"
+*  | "GUILD_SCHEDULED_EVENT_USER_ADD"
+*  | "GUILD_SCHEDULED_EVENT_USER_REMOVE"
+*  | "INTEGRATION_CREATE"
+*  | "INTEGRATION_UPDATE"
+*  | "INTEGRATION_DELETE"
+*  | "INTERACTION_CREATE"
+*  | "INVITE_CREATE"
+*  | "INVITE_DELETE"
+*  | "MESSAGE_CREATE"
+*  | "MESSAGE_UPDATE"
+*  | "MESSAGE_DELETE"
+*  | "MESSAGE_DELETE_BULK"
+*  | "MESSAGE_REACTION_ADD"
+*  | "MESSAGE_REACTION_REMOVE"
+*  | "MESSAGE_REACTION_REMOVE_ALL"
+*  | "MESSAGE_REACTION_REMOVE_EMOJI"
+*  | "PRESENCE_UPDATE"
+*  | "STAGE_INSTANCE_CREATE"
+*  | "STAGE_INSTANCE_DELETE"
+*  | "STAGE_INSTANCE_UPDATE"
+*  | "TYPING_START"
+*  | "USER_UPDATE"
+*  | "VOICE_STATE_UPDATE"
+*  | "VOICE_SERVER_UPDATE"
+*  | "WEBHOOKS_UPDATE" } ShardEvents
+*/

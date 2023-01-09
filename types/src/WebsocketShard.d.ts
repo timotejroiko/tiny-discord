@@ -12,9 +12,8 @@ declare class WebsocketShard extends EventEmitter {
     encoding: string;
     compression: 0 | 2 | 1;
     url: string;
-    session: string | null;
-    sequence: number;
-    resumeUrl: string | null;
+    disabledEvents: string[] | null;
+    etfUseBigint: boolean;
     identifyHook: ((id: number) => {
         canIdentify: boolean;
         retryAfter?: number | undefined;
@@ -22,6 +21,7 @@ declare class WebsocketShard extends EventEmitter {
         canIdentify: boolean;
         retryAfter?: number | undefined;
     }>) | null;
+    private _session;
     private _timestamps;
     private _timers;
     private _promises;
@@ -30,12 +30,17 @@ declare class WebsocketShard extends EventEmitter {
     private _voiceChunks;
     private _zlib;
     private _socket;
-    on: ((event: "event", callback: (data: ShardEvent) => void) => this) & ((event: "debug", callback: (data: string) => void) => this) & ((event: "close", callback: (data?: Error | undefined) => void) => this) & ((event: "ready", callback: (data: ShardReady) => void) => this) & ((event: "resumed", callback: (data: ShardResumed) => void) => this);
+    on: ((event: "event", callback: (data: ShardEvent) => void) => this) & ((event: "debug", callback: (data: string) => void) => this) & ((event: "close", callback: (data?: Error) => void) => this) & ((event: "ready", callback: (data: ReadyEvent) => void) => this);
     get connectedAt(): number;
     get identifiedAt(): number;
     get readyAt(): number;
     get lastPing(): number;
     get status(): keyof StatusCodes;
+    get session(): {
+        session_id: string | null;
+        sequence: number;
+        resume_url: string | null;
+    };
     connect(): Promise<void>;
     ping(data: any): Promise<number>;
     close(invalidate?: boolean): Promise<void>;
@@ -78,7 +83,7 @@ declare class WebsocketShard extends EventEmitter {
     private _processMessage;
 }
 declare namespace WebsocketShard {
-    export { WebsocketShardOptions, GatewayCommand, requestGuildMembersOptions, updatePresenceOptions, UpdateVoiceStateOptions, Properties, Presence, ShardEvent, ShardReady, ShardResumed, StatusCodes };
+    export { WebsocketShardOptions, GatewayCommand, requestGuildMembersOptions, updatePresenceOptions, UpdateVoiceStateOptions, Properties, Presence, ShardEvent, ShardReady, ShardResumed, ReadyEvent, StatusCodes, ShardEvents };
 }
 import { EventEmitter } from "events";
 type Presence = {
@@ -102,16 +107,9 @@ type ShardEvent = {
     s: number;
     t: string;
 };
-type ShardReady = {
-    v: string;
-    user: Record<string, any>;
-    guilds: Record<string, any>[];
-    session_id: string;
-    shard?: [number, number];
-    application: Record<string, any>;
-};
-type ShardResumed = {
-    replayed: number;
+type ReadyEvent = {
+    type: "identify" | "resume";
+    data: ShardReady | ShardResumed;
 };
 type StatusCodes = {
     0: "ready";
@@ -159,9 +157,13 @@ type WebsocketShardOptions = {
     encoding?: "etf" | "json" | undefined;
     compression?: 0 | 2 | 1 | undefined;
     url?: string | undefined;
-    session?: string | undefined;
-    sequence?: number | undefined;
-    resumeUrl?: string | undefined;
+    session?: {
+        session_id: string;
+        sequence: number;
+        resume_url: string;
+    } | undefined;
+    disabledEvents?: string[] | undefined;
+    etfUseBigint?: boolean | undefined;
     identifyHook?: ((id: number) => {
         canIdentify: boolean;
         retryAfter?: number;
@@ -170,3 +172,15 @@ type WebsocketShardOptions = {
         retryAfter?: number;
     }>) | undefined;
 };
+type ShardReady = {
+    v: string;
+    user: Record<string, any>;
+    guilds: Record<string, any>[];
+    session_id: string;
+    shard?: [number, number];
+    application: Record<string, any>;
+};
+type ShardResumed = {
+    replayed: number;
+};
+type ShardEvents = "APPLICATION_COMMAND_PERMISSIONS_UPDATE" | "AUTO_MODERATION_RULE_CREATE" | "AUTO_MODERATION_RULE_UPDATE" | "AUTO_MODERATION_RULE_DELETE" | "AUTO_MODERATION_ACTION_EXECUTION" | "CHANNEL_CREATE" | "CHANNEL_UPDATE" | "CHANNEL_DELETE" | "CHANNEL_PINS_UPDATE" | "THREAD_CREATE" | "THREAD_UPDATE" | "THREAD_DELETE" | "THREAD_LIST_SYNC" | "THREAD_MEMBER_UPDATE" | "THREAD_MEMBERS_UPDATE" | "GUILD_CREATE" | "GUILD_UPDATE" | "GUILD_DELETE" | "GUILD_BAN_ADD" | "GUILD_BAN_REMOVE" | "GUILD_EMOJIS_UPDATE" | "GUILD_STICKERS_UPDATE" | "GUILD_INTEGRATIONS_UPDATE" | "GUILD_MEMBER_ADD" | "GUILD_MEMBER_REMOVE" | "GUILD_MEMBER_UPDATE" | "GUILD_MEMBERS_CHUNK" | "GUILD_ROLE_CREATE" | "GUILD_ROLE_UPDATE" | "GUILD_ROLE_DELETE" | "GUILD_SCHEDULED_EVENT_CREATE" | "GUILD_SCHEDULED_EVENT_UPDATE" | "GUILD_SCHEDULED_EVENT_DELETE" | "GUILD_SCHEDULED_EVENT_USER_ADD" | "GUILD_SCHEDULED_EVENT_USER_REMOVE" | "INTEGRATION_CREATE" | "INTEGRATION_UPDATE" | "INTEGRATION_DELETE" | "INTERACTION_CREATE" | "INVITE_CREATE" | "INVITE_DELETE" | "MESSAGE_CREATE" | "MESSAGE_UPDATE" | "MESSAGE_DELETE" | "MESSAGE_DELETE_BULK" | "MESSAGE_REACTION_ADD" | "MESSAGE_REACTION_REMOVE" | "MESSAGE_REACTION_REMOVE_ALL" | "MESSAGE_REACTION_REMOVE_EMOJI" | "PRESENCE_UPDATE" | "STAGE_INSTANCE_CREATE" | "STAGE_INSTANCE_DELETE" | "STAGE_INSTANCE_UPDATE" | "TYPING_START" | "USER_UPDATE" | "VOICE_STATE_UPDATE" | "VOICE_SERVER_UPDATE" | "WEBHOOKS_UPDATE";
