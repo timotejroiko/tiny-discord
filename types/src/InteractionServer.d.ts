@@ -9,7 +9,7 @@ declare class InteractionServer extends EventEmitter {
     isCustomServer: boolean;
     server: Server | import("http2").Http2SecureServer;
     private _attached;
-    on: ((event: "interaction", callback: (data: InteractionData) => InteractionResponse | Promise<InteractionResponse>) => this) & ((event: "debug", callback: (data: string) => void) => this) & ((event: "error", callback: (data?: Error | undefined) => void) => this);
+    on: ((event: "interaction", callback: (data: InteractionData) => InteractionResponse | Promise<InteractionResponse>) => this) & ((event: "debug", callback: (data: string) => void) => this) & ((event: "error", callback: (data?: Error) => void) => this);
     listen(port: number): Promise<void>;
     close(): Promise<void>;
     private _onError;
