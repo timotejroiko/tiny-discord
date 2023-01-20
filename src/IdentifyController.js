@@ -106,10 +106,10 @@ class IdentifyController {
 		if(session) {
 			if(typeof session !== "object" || !Object.values(session).every(Number.isInteger)) { throw new Error("invalid session object"); }
 			this._gateway.session_start_limit = session;
+			this.lastRefresh = Date.now();
 		} else {
 			await this.fetchGateway(true);
 		}
-		this.lastRefresh = Date.now();
 	}
 
 	/**
@@ -136,6 +136,7 @@ class IdentifyController {
 				} else if(this.sessions.max_concurrency !== json.session_start_limit.max_concurrency) {
 					this._bucket = Array(json.session_start_limit.max_concurrency).fill(0);
 				}
+				this.lastRefresh = Date.now();
 				return this._gateway = json;
 			}
 			throw new Error(`status: ${result.status}, body: ${result.body.text}`);
