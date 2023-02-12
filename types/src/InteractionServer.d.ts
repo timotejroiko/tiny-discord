@@ -3,24 +3,53 @@ export = InteractionServer;
 declare class InteractionServer extends EventEmitter {
     constructor(options: InteractionServerOptions);
     key: string;
+    rest: import("./RestClient") | null;
     private _key;
     path: string;
     serverOptions: import("http2").SecureServerOptions | import("http").ServerOptions | null;
     isCustomServer: boolean;
     server: Server | import("http2").Http2SecureServer;
     private _attached;
-    on: ((event: "interaction", callback: (data: InteractionData) => InteractionResponse | Promise<InteractionResponse>) => this) & ((event: "debug", callback: (data: string) => void) => this) & ((event: "error", callback: (data?: Error) => void) => this);
+    on: ((event: "interaction", callback: (event: InteractionEvent) => void) => this) & ((event: "debug", callback: (data: string) => void) => this) & ((event: "error", callback: (data?: Error) => void) => this);
     listen(port: number): Promise<void>;
     close(): Promise<void>;
     private _onError;
     private _onRequest;
-    private _respond;
 }
 declare namespace InteractionServer {
-    export { InteractionServerOptions, InteractionData, InteractionResponse, FileObject };
+    export { InteractionServerOptions, InteractionData, InteractionReply, FileObject };
 }
 import { EventEmitter } from "events";
 import { Server } from "net";
+declare class InteractionEvent {
+    constructor(obj: {
+        req: import("http").IncomingMessage | import("http2").Http2ServerRequest;
+        res: (import("http").ServerResponse | import("http2").Http2ServerResponse) & {
+            write: import("stream").Writable["write"];
+        };
+        server: InteractionServer;
+        data: InteractionData;
+    });
+    request: import("http").IncomingMessage | import("http2").Http2ServerRequest;
+    response: (import("http").ServerResponse | import("http2").Http2ServerResponse) & {
+        write: import("stream").Writable["write"];
+    };
+    server: import("./InteractionServer");
+    interaction: InteractionData;
+    replied: boolean;
+    reply(val: InteractionReply, useRestCallback: true): import("./RestClient").RequestResult;
+    reply(val: InteractionReply, useRestCallback: false): Promise<void>;
+    reply(val: InteractionReply): Promise<void>;
+    isValidResponse(value: InteractionReply): value is InteractionReply;
+    private _respondWithRest;
+    private _respond;
+}
+type InteractionServerOptions = {
+    key: string;
+    path?: string;
+    server?: import("net").Server | import("http2").SecureServerOptions | import("http").ServerOptions;
+    rest?: import("./RestClient");
+};
 type InteractionData = {
     id: string;
     application_id: string;
@@ -37,7 +66,7 @@ type InteractionData = {
     locale?: string;
     guild_locale?: string;
 };
-type InteractionResponse = {
+type InteractionReply = {
     type: number;
     data?: Record<string, any>;
 } | {
@@ -46,11 +75,6 @@ type InteractionResponse = {
         type: number;
         data?: Record<string, any>;
     };
-};
-type InteractionServerOptions = {
-    key: string;
-    path?: string;
-    server?: import("net").Server | import("http2").SecureServerOptions | import("http").ServerOptions;
 };
 type FileObject = {
     name: string;
