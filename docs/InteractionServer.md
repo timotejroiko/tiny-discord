@@ -152,11 +152,11 @@ await server.close()
 
 &nbsp;
 
-## Properties
+## InteractionEvent Properties
 
 &nbsp;
 
-### request
+### .request
 
 A reference to the raw HTTP request object (data stream already consumed/closed). This can be used to view the headers sent by discord for example.
 
@@ -164,7 +164,7 @@ A reference to the raw HTTP request object (data stream already consumed/closed)
 
 &nbsp;
 
-### response
+### .response
 
 A reference to the raw HTTP response object (data stream still open). This can be used to manually pipe/write a reply.
 
@@ -172,7 +172,7 @@ A reference to the raw HTTP response object (data stream still open). This can b
 
 &nbsp;
 
-### server
+### .server
 
 A reference to the parent [InteractionServer](#class-interactionserver) instance.
 
@@ -180,7 +180,7 @@ A reference to the parent [InteractionServer](#class-interactionserver) instance
 
 &nbsp;
 
-### interaction
+### .interaction
 
 The actual interaction object sent by Discord.
 
@@ -188,7 +188,7 @@ The actual interaction object sent by Discord.
 
 &nbsp;
 
-### replied
+### .replied
 
 Whether this interaction was already replied to. Each InteractionEvent instance can only reply once.
 
@@ -196,7 +196,7 @@ Whether this interaction was already replied to. Each InteractionEvent instance 
 
 &nbsp;
 
-## Methods
+## InteractionEvent Methods
 
 &nbsp;
 
