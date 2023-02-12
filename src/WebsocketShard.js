@@ -1,11 +1,11 @@
 /* eslint-disable no-extra-parens */
 "use strict";
 
-const { EventEmitter } = require("events");
-const { request } = require("https");
-const { randomBytes, createHash } = require("crypto");
-const { createInflate } = require("zlib");
-const { setTimeout, setInterval } = require("timers");
+const { EventEmitter } = require("node:events");
+const { request } = require("node:https");
+const { randomBytes, createHash } = require("node:crypto");
+const { createInflate } = require("node:zlib");
+const { setTimeout, setInterval } = require("node:timers");
 
 class WebsocketShard extends EventEmitter {
 	/**

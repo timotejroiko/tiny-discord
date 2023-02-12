@@ -1,12 +1,12 @@
 /* eslint-disable no-extra-parens */
 "use strict";
 
-const { EventEmitter } = require("events");
-const { Server } = require("net");
-const { Readable } = require("stream");
-const { createServer } = require("http");
-const { createSecureServer } = require("http2");
-const { createPublicKey, verify, randomBytes } = require("crypto");
+const { EventEmitter } = require("node:events");
+const { Server } = require("node:net");
+const { Readable } = require("node:stream");
+const { createServer } = require("node:http");
+const { createSecureServer } = require("node:http2");
+const { createPublicKey, verify, randomBytes } = require("node:crypto");
 
 class InteractionServer extends EventEmitter {
 	/**

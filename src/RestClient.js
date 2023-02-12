@@ -1,9 +1,9 @@
 /* eslint-disable no-extra-parens */
 "use strict";
 
-const { request, Agent } = require("https");
-const { randomBytes } = require("crypto");
-const { Readable } = require("stream");
+const { request, Agent } = require("node:https");
+const { randomBytes } = require("node:crypto");
+const { Readable } = require("node:stream");
 
 class RestClient {
 	/**
