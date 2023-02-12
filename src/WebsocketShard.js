@@ -316,25 +316,9 @@ class WebsocketShard extends EventEmitter {
 	/**
 	 * 
 	 * @param {UpdateVoiceStateOptions} state 
-	 * @returns {Promise<{
-	 * 		guild_id: string,
-	 * 		channel_id?: string,
-	 * 		user_id: string,
-	 * 		member?: Record<string, any>,
-	 * 		session_id: string,
-	 * 		deaf: boolean,
-	 * 		mute: boolean,
-	 * 		self_deaf: boolean,
-	 * 		self_mute: boolean,
-	 * 		self_stream?: boolean,
-	 * 		self_video: boolean,
-	 * 		suppress: boolean,
-	 * 		request_to_speak_timestamp?: string,
-	 * 		token?: string,
-	 * 		endpoint?: string
-	 * }>}
+	 * @returns {Promise<UpdateVoiceStateResponse>}
 	 */
-	updateVoiceState(state) {
+	updateVoiceState(state, wait_for_server = false) {
 		if(!state || typeof state !== "object") { return Promise.reject(new Error("Invalid voice state object")); }
 		if(typeof state.guild_id !== "string") { return Promise.reject(new Error("Invalid guild_id")); }
 		const id = state.guild_id;
@@ -364,7 +348,7 @@ class WebsocketShard extends EventEmitter {
 			chunks[id] = {
 				resolve: resolver,
 				state: null,
-				server: state.wait_for_server ? null : {}
+				server: wait_for_server ? null : {}
 			};
 		}));
 	}
@@ -1274,9 +1258,28 @@ module.exports = WebsocketShard;
  * 		channel_id?: string,
  * 		self_mute?: boolean,
  * 		self_deaf?: boolean,
- * 		wait_for_server?: boolean,
  * 		timeout?: number
  * }} UpdateVoiceStateOptions
+ */
+
+/**
+ * @typedef {{
+ * 		guild_id: string,
+ * 		channel_id?: string,
+ * 		user_id: string,
+ * 		member?: Record<string, any>,
+ * 		session_id: string,
+ * 		deaf: boolean,
+ * 		mute: boolean,
+ * 		self_deaf: boolean,
+ * 		self_mute: boolean,
+ * 		self_stream?: boolean,
+ * 		self_video: boolean,
+ * 		suppress: boolean,
+ * 		request_to_speak_timestamp?: string,
+ * 		token?: string,
+ * 		endpoint?: string
+ * }} UpdateVoiceStateResponse
  */
 
 /**
