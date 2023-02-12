@@ -1,12 +1,12 @@
 /* eslint-disable no-extra-parens */
 "use strict";
 
-const { EventEmitter } = require("node:events");
+const { EventEmitter, once } = require("node:events");
 const { Server } = require("node:net");
 const { Readable } = require("node:stream");
 const { createServer } = require("node:http");
 const { createSecureServer } = require("node:http2");
-const { createPublicKey, verify, randomBytes } = require("node:crypto");
+const { createPublicKey, verify } = require("node:crypto");
 
 class InteractionServer extends EventEmitter {
 	/**
@@ -17,6 +17,7 @@ class InteractionServer extends EventEmitter {
 		super();
 		if(typeof options.key !== "string") { throw new Error("Invalid public key"); }
 		this.key = options.key;
+		this.rest = options.rest || null;
 		try {
 			/** @private */ this._key = createPublicKey({
 				key: Buffer.concat([Buffer.from("MCowBQYDK2VwAyEA", "base64"), Buffer.from(this.key, "hex")]),
@@ -35,17 +36,17 @@ class InteractionServer extends EventEmitter {
 		} else {
 			this.isCustomServer = false;
 			this.serverOptions = options.server || {};
-			if("cert" in this.serverOptions && "key" in this.serverOptions) {
+			if(isSecureOptions(this.serverOptions)) {
 				this.server = createSecureServer(this.serverOptions);
 			} else {
-				this.server = createServer(/** @type {import("http").ServerOptions} */ (this.serverOptions));
+				this.server = createServer(this.serverOptions);
 			}
 		}
 		/** @private */ this._attached = false;
 
 		/**
 		 * @type {(
-		 * 		((event: "interaction", callback: (data: InteractionData) => InteractionResponse | Promise<InteractionResponse>) => this) &
+		 * 		((event: "interaction", callback: (event: InteractionEvent) => void) => this) &
 		 * 		((event: "debug", callback: (data: string) => void) => this) &
 		 * 		((event: "error", callback: (data?: Error) => void) => this)
 		 * )}
@@ -125,7 +126,7 @@ class InteractionServer extends EventEmitter {
 	/**
 	 * 
 	 * @param {import("http").IncomingMessage | import("http2").Http2ServerRequest} req 
-	 * @param {import("http").ServerResponse & import("http2").Http2ServerResponse} res 
+	 * @param {(import("http").ServerResponse | import("http2").Http2ServerResponse) & { write: import("stream").Writable["write"] }} res 
 	 * @private
 	 */
 	_onRequest(req, res) {
@@ -140,24 +141,25 @@ class InteractionServer extends EventEmitter {
 		}
 		/** @type {Buffer[]} */ const buffer = [];
 		req.on("data", d => buffer.push(d));
-		req.on("end", () => {
+		req.once("end", () => {
 			if(!req.complete) {
 				this.emit("debug", "Received incomplete request, returning 400");
 				res.writeHead(400);
 				res.end();
 				return;
 			}
-			const body = Buffer.concat(buffer).toString();
-			const valid = isValidSignature(this._key, body, timestamp, signature);
+			const body = Buffer.concat(buffer);
+			const string = body.toString();
+			const valid = isValidSignature(this._key, string, timestamp, signature);
 			if(!valid) {
 				this.emit("debug", "Received invalid signature, returning 401");
 				res.writeHead(401);
 				res.end();
 				return;
 			}
-			let data;
+			/** @type {InteractionData} */ let data;
 			try {
-				data = JSON.parse(body);
+				data = JSON.parse(string);
 			} catch(e) {
 				this.emit("debug", "Received invalid data, returning 400");
 				res.writeHead(400);
@@ -171,123 +173,163 @@ class InteractionServer extends EventEmitter {
 				return;
 			}
 			this.emit("debug", "Received interaction request");
-			// @ts-expect-error _events is private / not typed
-			const listeners = /** @type {function | function[]} */ (this._events.interaction);
-			if(!listeners) {
+			// @ts-expect-error _events is private
+			if(!this._events.interaction) {
 				this.emit("debug", "No interaction listeners, returning 500");
-				res.writeHead(500);
+				res.writeHead(400);
 				res.end();
 				return;
 			}
-			if(typeof listeners === "function") {
-				let response;
-				try {
-					response = listeners(data);
-				} catch(e) {
-					this.emit("debug", "Response produced an error, returning 500");
-					this.emit("error", e);
-					res.writeHead(500);
-					res.end();
-					return;
-				}
-				Promise.resolve(response).then(val => {
-					if(isValidResponse(val)) {
-						this.emit("debug", "Responding to interaction");
-						this._respond(val, res);
-					} else {
-						this.emit("debug", "No valid response provided, returning 500");
-						res.writeHead(500);
-						res.end();
-					}
-				}).catch(e => {
-					this.emit("debug", "Response produced an error, returning 500");
-					this.emit("error", e);
-					res.writeHead(500);
-					res.end();
-				});
-			} else {
-				/** @type {Promise<{index: number, val?: any}>[]} */ const responses = [];
-				for(const listener of listeners) {
-					try {
-						const result = listener(data);
-						const index = responses.length;
-						const promise = Promise.resolve(result).then(val => ({index, val})).catch(e => {
-							this.emit("error", e);
-							return {index};
-						});
-						responses.push(promise);
-					} catch(e) {
-						this.emit("error", e);
-						continue;
-					}
-				}
-				(async () => {
-					while(responses.length) {
-						const { index, val } = await Promise.race(responses);
-						if(isValidResponse(val)) {
-							this.emit("debug", "Responding to interaction");
-							this._respond(val, res);
-							return;
-						}
-						responses.splice(index, 1);
-					}
-					this.emit("debug", "No response provided, returning 500");
-					res.writeHead(500);
-					res.end();
-				})();
-			}
+			const event = new InteractionEvent({ data, req, res, server: this });
+			this.emit("interaction", event);
 		});
+	}
+}
+
+class InteractionEvent {
+
+	/**
+	 * 
+	 * @param {{
+	 * 		req: import("http").IncomingMessage | import("http2").Http2ServerRequest,
+	 * 		res: (import("http").ServerResponse | import("http2").Http2ServerResponse) & { write: import("stream").Writable["write"] },
+	 * 		server: InteractionServer,
+	 * 		data: InteractionData
+	 * }} obj 
+	 */
+	constructor(obj) {
+		this.request = obj.req;
+		this.response = obj.res;
+		this.server = obj.server;
+		this.interaction = obj.data;
+		this.replied = false;
 	}
 
 	/**
 	 * 
-	 * @param {InteractionResponse} val 
-	 * @param {import("http").ServerResponse & import("http2").Http2ServerResponse} res 
+	 * @param {InteractionReply} val 
+	 * @param {boolean} [useRestCallback] 
+	 * @returns 
+	 */
+
+
+	/**
+     * @overload
+     * @param {InteractionReply} val
+     * @param {true} useRestCallback
+	 * @returns {import("./RestClient").RequestResult}
+     *//**
+     * @overload
+     * @param {InteractionReply} val
+     * @param {false} useRestCallback
+	 * @returns {Promise<void>}
+     *//**
+     * @overload
+     * @param {InteractionReply} val
+	 * @returns {Promise<void>}
+     *//**
+     * @param {InteractionReply} val
+     * @param {boolean} [useRestCallback]
+     */
+	reply(val, useRestCallback = false) {
+		if(this.replied) { return Promise.reject("This interaction was already replied to"); }
+		this.replied = true;
+		if(!this.isValidResponse(val)) {
+			this.server.emit("debug", "Invalid response provided, returning 500");
+			this.response.writeHead(500);
+			this.response.end();
+			return Promise.reject(`Invalid response: ${val}`);
+		}
+		this.server.emit("debug", "Responding to interaction");
+		return useRestCallback ? this._respondWithRest(val) : this._respond(val);
+	}
+
+	/**
+	 * 
+	 * @param {InteractionReply} value 
+	 * @returns {value is InteractionReply}
+	 */
+	isValidResponse(value) {
+		if(!value || typeof value !== "object") { return false; }
+		if("files" in value) {
+			if(!Array.isArray(value.files)) { return false; }
+			for(const file of value.files) {
+				if(!file || typeof file !== "object" || !file.name || !file.data) {
+					return false;
+				}
+			}
+			return value.payload_json && typeof value.payload_json === "object" && Number.isInteger(value.payload_json.type);
+		}
+		return Number.isInteger(value.type);
+	}
+
+	/**
+	 * 
+	 * @param {InteractionReply} val 
 	 * @private
 	 */
-	_respond(val, res) {
-		if("files" in val && Array.isArray(val.files)) {
-			const boundary = randomBytes(16).toString("base64");
-			const files = val.files;
-			try {
-				const json = JSON.stringify(val.payload_json);
-				res.writeHead(200, { "Content-Type": `multipart/form-data; boundary=${boundary}` });
-				res.write(`\r\n--${boundary}\r\nContent-Disposition: form-data; name="payload_json"\r\nContent-Type: application/json\r\n\r\n${json}`);
-			} catch(e) {
-				this.emit("debug", "JSON payload produced an error, returning 500");
-				this.emit("error", e);
-				res.writeHead(500);
-				res.end();
-				return;
-			}
-			(async () => {
-				for(let i = 0; i < files.length; i++) {
-					const file = files[i];
-					const type = typeof file.type === "string" ? `\r\nContent-Type: ${file.type}` : "";
-					res.write(`\r\n--${boundary}\r\nContent-Disposition: form-data; name="files[${i}]"; filename="${file.name}"${type}\r\n\r\n`);
-					if(file.data instanceof Readable && file.data.readable) {
-						for await(const chunk of file.data) {
-							res.write(chunk);
-						}
-					} else {
-						res.write(file.data);
-					}
-				}
-				res.end(`\r\n--${boundary}--`);
-			})();
+	async _respondWithRest(val) {
+		const client = this.server.rest;
+		if(!client || !client.post) {
+			throw new Error("Using the REST callback requires defining a RestClient in the server options");
+		}
+		const result = await client.post(`/interactions/${this.interaction.id}/${this.interaction.token}/callback`, val);
+		if(result.status === 204) {
+			this.response.writeHead(204);
+			this.response.end();
+			return result;
 		} else {
-			try {
-				const json = JSON.stringify(val);
-				res.writeHead(200, { "Content-Type": "application/json" });
-				res.end(json);
-			} catch(e) {
-				this.emit("debug", "Response produced an error, returning 500");
-				this.emit("error", e);
-				res.writeHead(500);
-				res.end();
-			}
+			this.response.writeHead(500);
+			this.response.end();
+			throw new Error(`status: ${result.status}\nbody: ${result.body.text}`);
 		}
 	}
+
+	/**
+	 * 
+	 * @param {InteractionReply} val 
+	 * @private
+	 */
+	async _respond(val) {
+		if("files" in val) {
+			const files = val.files;
+			const boundary = (Date.now() + Math.random().toString(36).slice(2)).padStart(32, "-");
+			this.response.writeHead(200, { "Content-Type": `multipart/form-data; boundary=${boundary}` });
+			const json = JSON.stringify(val.payload_json);
+			this.response.write(`\r\n--${boundary}\r\nContent-Disposition: form-data; name="payload_json"\r\nContent-Type: application/json\r\n\r\n${json}`);
+			for(let i = 0; i < files.length; i++) {
+				const file = files[i];
+				const type = typeof file.type === "string" ? `\r\nContent-Type: ${file.type}` : "";
+				this.response.write(`\r\n--${boundary}\r\nContent-Disposition: form-data; name="files[${i}]"; filename="${file.name}"${type}\r\n\r\n`);
+				if(file.data instanceof Readable) {
+					if(!file.data.readable) {
+						throw new Error(`Stream for ${file.name} is not readable`);
+					}
+					for await(const chunk of file.data) {
+						this.response.write(chunk);
+					}
+				} else {
+					this.response.write(file.data);
+				}
+			}
+			this.response.end(`\r\n--${boundary}--`);
+		} else {
+			const json = JSON.stringify(val);
+			this.response.writeHead(200, { "Content-Type": "application/json" });
+			this.response.end(json);
+		}
+		return once(this.response, "close").then(() => void 0);
+	}
+}
+
+/**
+ * 
+ * @param {import("http2").SecureServerOptions | import("http").ServerOptions} opts 
+ * @returns {opts is import("http2").SecureServerOptions}
+ * @private
+ */
+function isSecureOptions(opts) {
+	return "cert" in opts && "key" in opts;
 }
 
 /**
@@ -296,30 +338,12 @@ class InteractionServer extends EventEmitter {
  * @param {string} body 
  * @param {string} timestamp 
  * @param {string} signature 
- * @returns 
+ * @private
  */
 function isValidSignature(key, body, timestamp, signature) {
 	const data = Buffer.from(timestamp + body);
 	const sig = Buffer.from(signature, "hex");
 	return verify(null, data, key, sig);
-}
-
-/**
- * 
- * @param {InteractionResponse} value 
- * @returns {boolean}
- */
-function isValidResponse(value) {
-	if(!value || typeof value !== "object") { return false; }
-	if("files" in value) {
-		for(const file of value.files) {
-			if(!file || typeof file !== "object" || !file.name || !file.data) {
-				return false;
-			}
-		}
-		return value.payload_json && typeof value.payload_json === "object" && Number.isInteger(value.payload_json.type);
-	}
-	return Number.isInteger(value.type);
 }
 
 module.exports = InteractionServer;
@@ -328,7 +352,8 @@ module.exports = InteractionServer;
  * @typedef {{
  * 		key: string,
  *		path?: string,
- *		server?: import("net").Server | import("http2").SecureServerOptions | import("http").ServerOptions
+ *		server?: import("net").Server | import("http2").SecureServerOptions | import("http").ServerOptions,
+ *		rest?: import("./RestClient")
  * }} InteractionServerOptions
  */
 
@@ -361,7 +386,7 @@ module.exports = InteractionServer;
  * 			type: number,
  * 			data?: Record<string, any>
  * 		}
- * }} InteractionResponse
+ * }} InteractionReply
  */
 
 /**

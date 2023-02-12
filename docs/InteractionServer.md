@@ -2,11 +2,11 @@
 
 A basic webhook server for Discord interactions.
 
-Running a Webhook server has many advantages over the traditional websocket gateway, there is no sharding, no disconnections and reconnections, no heartbeating to maintain, can run on serverless hosts such as cloudflare, replit and glitch and is extremely light in resource usage.
+Running a Webhook server has many advantages over the traditional WebSocket gateway, there is no sharding, no disconnections and reconnections, no heartbeats to maintain, can run on serverless hosts such as Cloudflare, Replit and glitch and is extremely light in resource usage.
 
-Discord only sends webhooks via https, so you need a domain name with a valid ssl certificate, or you can proxy it through something that has it, like nginx with certbot or cloudflare with flexible ssl. InteractionServer handles all other security requirements for you, including validating Ed25519 signatures and responding to Discord's tests and pings.
+Discord only sends webhooks via HTTPS, so you need a domain name with a valid SSL certificate, or you can proxy it through something that has it, like nginx with Certbot or Cloudflare with flexible SSL. InteractionServer handles all other security requirements for you, including validating Ed25519 signatures and responding to Discord's tests and pings.
 
-IMPORTANT: Once you setup a webhook server in your application, Discord will no longer send you interaction events via websocket.
+IMPORTANT: Once you set up a webhook server in your application, Discord will no longer send you interaction events via WebSocket.
 
 &nbsp;
 
@@ -34,19 +34,19 @@ const server = new InteractionServer({ key: "huehuehue" })
 
 ### interaction
 
-Emitted when a Discord Interaction is received. You must respond to the interaction by returning an [InteractionResponse](#interactionresponse) object or an [InteractionFileResponse](#interactionfileresponse) object from inside the callback function (see examples at the end of the page). If multiple interaction listeners are created, the fastest valid response will be used and all others will be discarded.
+Emitted when a Discord Interaction webhook is received. This event provides an instance of [InteractionEvent](#class-interactionevent) which helps you reply to the interaction.
 
-IMPORTANT: this event has to be responded to as fast as possible. Discord requires a response to be returned in under 3 seconds including any delays caused by the network, therefore the user should be careful with async callbacks and defer when needed.
+IMPORTANT: this event has to be replied to as fast as possible. Discord requires a reply to be returned in under 3 seconds starting from the moment the webhook left their servers, therefore the user should be careful with async callbacks and defer when needed.
 
 |parameter|type|description|
 |-|-|-|
-|interaction|[InteractionData](#interactiondata)|The interaction payload|
+|interaction|[InteractionEvent](#class-interactionevent)|The interaction payload|
 
 &nbsp;
 
 ### error
 
-Emitted when an error happens. The server will automatically respond with a code 500 and continue running normally.
+Emitted when the HTTP server encounters an error.
 
 |parameter|type|description|
 |-|-|-|
@@ -86,9 +86,9 @@ The path/url the server is listening to.
 
 ### server
 
-The Server instance that is listening to interaction requests. If an existing server instance was given in the constructor options, this property will be a reference to that server, otherwise it will contain a newly created http/http2 server.
+The Server instance that is listening to interaction requests. If an existing server instance was given in the constructor options, this property will be a reference to that server, otherwise it will contain a newly created HTTP/HTTP2 server.
 
-**type:** http.Server | http2.Http2SecureServer | another custom net/tls based server
+**type:** http.Server | http2.Http2SecureServer | other custom NET/TLS based server
 
 &nbsp;
 
@@ -102,9 +102,17 @@ Whether `this.server` references an existing server managed by the user.
 
 ### serverOptions
 
-The options object used to create a new http/http2 server. null if an existing custom server was used.
+The options object used to create a new HTTP/HTTP2 server or null if an existing custom server was used.
 
 **type:** object | null
+
+&nbsp;
+
+### rest
+
+A reference to an optional RestClient instance attached to the server.
+
+**type:** [RestClient](RestClient.md) | null
 
 &nbsp;
 
@@ -114,7 +122,7 @@ The options object used to create a new http/http2 server. null if an existing c
 
 ### .listen(port)
 
-Bind the server to a port and start listening if its not already.
+Bind the server to a port and start listening if it isn't already.
 
 |parameter|type|required|default|description|
 |-|-|-|-|-|
@@ -140,6 +148,95 @@ await server.close()
 
 &nbsp;
 
+## Class InteractionEvent
+
+&nbsp;
+
+## Properties
+
+&nbsp;
+
+### request
+
+A reference to the raw HTTP request object (data stream already consumed/closed). This can be used to view the headers sent by discord for example.
+
+**type:** http.IncomingMessage | http2.Http2ServerRequest
+
+&nbsp;
+
+### response
+
+A reference to the raw HTTP response object (data stream still open). This can be used to manually pipe/write a reply.
+
+**type:** http.ServerResponse | http2.Http2ServerResponse
+
+&nbsp;
+
+### server
+
+A reference to the parent [InteractionServer](#class-interactionserver) instance.
+
+**type:** [InteractionServer](#class-interactionserver)
+
+&nbsp;
+
+### interaction
+
+The actual interaction object sent by Discord.
+
+**type:** [InteractionObject🔗](https://discord.com/developers/docs/interactions/receiving-and-responding#interaction-object)
+
+&nbsp;
+
+### replied
+
+Whether this interaction was already replied to. Each InteractionEvent instance can only reply once.
+
+**type:** Boolean
+
+&nbsp;
+
+## Methods
+
+&nbsp;
+
+### .reply(data, useRestCallback)
+
+Reply to this interaction. Each interaction can only be replied to once (followup's should be done via the REST API), subsequent calls to this method will reject the promise. If `useRestCallback` is set to true, the reply will be sent via the REST API's interaction callback endpoint instead of responding directly to the webhook, and will return an [ApiResponse](RestClient.md#apiresponse) instead of void (requires defining a RestClient instance in the [InteractionServer](#class-interactionserver) options).
+
+Differences between responding via the REST callback endpoint and responding directly to the webhook include:
+
+- REST callback returns a response from Discord while replying directly to the webhook doesn't return any feedback. This can impact deferring and followups, for example when you defer by responding directly to the webhook you won't know if the deferring actually worked or not, so you must be prepared to get a possible unknown interaction error when you send the reply/followup. Deferring via REST callback returns a response, which lets you know whether the deferring worked before you reply.
+- REST callback lets you upload larger attachments while uploading files directly to the webhook is currently limited to ~150kb ([for unknown reasons](https://github.com/discord/discord-api-docs/issues/5250)).
+- REST is slower and wastes more resources due to opening new connections instead of reusing the existing ones.
+
+|parameter|type|required|default|description|
+|-|-|-|-|-|
+|data|[InteractionReply](#interactionreply)|yes|-|The interaction reply to be sent to Discord|
+|useRestCallback|boolean|no|false|Whether to send the reply via REST callback|
+
+**Returns:** Promise\<void | [ApiResponse](RestClient.md#apiresponse)\>
+
+```js
+await event.reply({ type: 4, data: { content: "hi" } })
+```
+
+&nbsp;
+
+### .isValidResponse(data)
+
+Small utility method that does basic validation for the reply. This method is called internally when using [reply()](#replydata-userestcallback).
+
+|parameter|type|required|default|description|
+|-|-|-|-|-|
+|data|[InteractionReply](#interactionreply)|yes|-|The interaction reply to be sent to Discord|
+
+**Returns:** boolean
+
+```js
+event.isValidResponse({ type: 4, data: { content: "hi" } })
+```
+
 ## Types
 
 &nbsp;
@@ -151,50 +248,38 @@ await server.close()
 |key|string|yes|-|Your application's public key|
 |path|string|no|"/"|Path on which to accept interaction webhooks|
 |server|server \| object|no|-|Server options or a custom server \*|
+|rest|[RestClient](RestClient.md)|no|-|Optional instance of [RestClient](RestClient.md) to enable replying via REST API|
 
-\* If `server` is an instance of a http/https/http2/net/tls based Server, InteractionServer will attach itself to it like a middleware. Otherwise if `server` is an object, it will be used as the options to create a new internal server instance. If the object includes `cert` and `key` properties, it will be used with `http2.createSecureServer`, otherwise it will be used with `http.createServer`.
-
-&nbsp;
-
-### InteractionData
-
-|parameter|type|description|
-|-|-|-|
-|id|string|Interaction id|
-|type|number|Interaction type|
-|data?|object|Interaction data|
-|guild_id?|string|Guild id if run in a guild|
-|channel_id?|string|Channel id if applicable|
-|member?|object|Author's Member object|
-|user?|object|Author's User object|
-|token|string|Interaction token for follow ups|
-|version|number|Interaction version|
-|message?|object|Interaction Message object if applicable|
+\* If `server` is an instance of an HTTP/HTTPS/HTTP2/NET/TLS based Server, InteractionServer will attach itself to it like a middleware. Otherwise, if `server` is an object, it will be used as the options to create a new internal server instance. If the object includes `cert` and `key` properties, it will be used with `http2.createSecureServer`, otherwise it will be used with `http.createServer`.
 
 &nbsp;
 
-### InteractionResponse
+### InteractionReply
+
+Normal reply:
 
 |parameter|type|required|default|description|
 |-|-|-|-|-|
-|type|number|yes|-|The interaction response type|
-|data?|object|no|-|The interaction response data|
+|type|number|yes|-|The interaction reply type|
+|data?|object|no|-|The interaction reply data|
 
-&nbsp;
-
-### InteractionFileResponse
+File uploads:
 
 |parameter|type|required|default|description|
 |-|-|-|-|-|
-|files|object|yes|-|Array of File objects to send \*|
-|payload_json|[InteractionResponse](#interactionresponse)|yes|-|The interaction response|
+|payload_json|[InteractionReply](#interactionreply)|yes|-|The normal reply as above|
+|files|Array<[FileObject](#fileobject)>|yes|-|Array of files to send \*|
 
-\* When sending files, the response will be automatically converted into `multipart-formdata`. The `files` field should be array of File objects as follows:
+\* When sending files, the reply will be sent using `multipart-formdata`.
+
+&nbsp;
+
+### FileObject
 
 |parameter|type|required|description|
 |-|-|-|-|
 |name|string|yes|The file name including extension|
-|data|buffer \| stream|yes|The file data as a Buffer or ReadableStream|
+|data|Buffer \| Readable|yes|The file contents as a buffer or a readable stream|
 |type|string|no|The file's MIME type, for example "image/png". If not provided, Discord will attempt to auto-detect it from the file extension|
 
 &nbsp;
@@ -203,7 +288,7 @@ await server.close()
 
 &nbsp;
 
-Simple http server and a message response (with an ssl proxy elsewhere):
+Simple HTTP server and a message response (with an SSL proxy elsewhere):
 
 ```js
 const { InteractionServer } = require("tiny-discord");
@@ -212,14 +297,14 @@ const server = new InteractionServer({
   key: "fuuuuuuuuuuuu",
 });
 
-server.on("interaction", interaction => {
-  console.log(interaction);
-  return {
+server.on("interaction", event => {
+  console.log(event.interaction);
+  event.reply({
     type: 4,
     data: {
       content: "test"
     }
-  };
+  }).catch(console.log);
 });
 
 server.on("error", console.error);
@@ -229,7 +314,7 @@ server.listen(3000);
 
 &nbsp;
 
-An https server with an async callback:
+An HTTPS server with an async callback:
 
 ```js
 const { InteractionServer } = require("tiny-discord");
@@ -243,9 +328,9 @@ const server = new InteractionServer({
   }
 });
 
-server.on("interaction", async interaction => {
-  const result = await somePromise(interaction);
-  return { type: 4, data: { content: result } };
+server.on("interaction", async event => {
+  const result = await somePromise(event.interaction);
+  await event.reply({ type: 4, data: { content: result } });
 });
 
 server.listen(3000);
@@ -268,30 +353,29 @@ const server = new InteractionServer({
   server: listener
 });
 
-server.on("interaction", interaction => {
+const rest = new RestClient({
+  token: "mytoken" // a valid token is not actually required here, interaction webhooks use the interaction token, not the bot token
+})
 
-  // begin executing an async function
-  someLongAsyncFunction(interaction).then(async something => {
-    // once the job is done, use the rest api to send a followup message using interaction.token
+server.on("interaction", event => {
+  // defer
+  await event.reply({ type: 5 });
 
-    // example using tiny-discord's RestClient:
-    await rest.patch(`/webhooks/${interaction.application_id}/${interaction.token}/messages/@original`, {
-      content: "hello world"
-    });
+  // do something
+  await someLongAsyncFunction(event.interaction);
 
-  }).catch(console.error);
-
-  // respond with a deferred type immediately while we wait for the function to complete
-  return { type: 5 };
-
+  // followup/update example using tiny-discord's RestClient:
+  await rest.patch(`/webhooks/${event.interaction.application_id}/${event.interaction.token}/messages/@original`, {
+    content: "hello world"
+  });
 });
 ```
 
 Responding with files and attachments:
 
 ```js
-server.on("interaction", interaction => {
-  return {
+server.on("interaction", async event => {
+  await event.reply({
     files: [{
       name: "image.jpg",
       data: fs.readFileSync("./myimagefile.jpg")
@@ -311,6 +395,32 @@ server.on("interaction", interaction => {
        }]
       }
     }
+  })
+})
+```
+
+Responding using the REST callback:
+
+```js
+const { InteractionServer, RestClient } = require("tiny-discord")
+
+const rest = new RestClient({
+  token: "mytoken" // a valid token is not actually required here, interaction webhooks use the interaction token, not the bot token
+})
+
+const server = new InteractionServer({
+  key: "huehuehuehuehuehue",
+  rest
+})
+
+server.on("interaction", event => {
+  const response = await event.reply({ type: 5 }, true);
+  if(response.status === 204) {
+    await rest.patch(`/webhooks/${event.interaction.application_id}/${event.interaction.token}/messages/@original`, {
+      content: "hello world"
+    });
   }
 })
+
+server.listen(3000)
 ```
