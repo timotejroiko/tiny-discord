@@ -57,7 +57,7 @@ class WebsocketShard extends EventEmitter {
 		/** @private */ this._timers = {
 			/** @type {(NodeJS.Timeout & { count: number, until: number })?} */ ratelimit: null,
 			/** @type {(NodeJS.Timeout & { count: number, until: number })?} */ presencelimit: null,
-			/** @type {(NodeJS.Timeout | NodeJS.Timer)?} */ heartbeat: null,
+			/** @type {NodeJS.Timeout?} */ heartbeat: null,
 			/** @type {NodeJS.Timeout?} */ close: null,
 			/** @type {NodeJS.Timeout?} */ offline: null
 		};
@@ -722,7 +722,6 @@ class WebsocketShard extends EventEmitter {
 					this._initClose(4099, true);
 					return;
 				}
-				
 			}
 			if(this.disabledEvents !== null) {
 				const ev = this.encoding === "json" ? peekJSON(data) : peekETF(data);
