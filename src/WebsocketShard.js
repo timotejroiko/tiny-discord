@@ -79,6 +79,7 @@ class WebsocketShard extends EventEmitter {
 		/** @private @type {Record<string, { resolve: () => void, state: Record<string, any>?, server: Record<string, any>? }>} */ this._voiceChunks = {};
 		/** @private @type {zlib?} */ this._zlib = null;
 		/** @private @type {import("net").Socket?} */ this._socket = null;
+		/** @private @type {Buffer[]} */ this._frameBuffer = [];
 
 		/**
 		 * @type {(
@@ -631,12 +632,28 @@ class WebsocketShard extends EventEmitter {
 				if(socket.readableLength < 2 + bytes) { return; }
 				length = readRange(socket, 2, bytes);
 			}
-			const frame = socket.read(2 + bytes + length);
+			/** @type {Buffer} */ const frame = socket.read(2 + bytes + length);
 			if(!frame) { return; }
 			const fin = frame[0] >> 7;
-			const opcode = frame[0] & 15;
-			if(fin !== 1 || opcode === 0) {	throw new Error("discord actually does send messages with fin=0. if you see this error let me know"); }
-			const payload = frame.slice(2 + bytes);
+			if(fin === 0) {
+				this._frameBuffer.push(frame);
+				return;
+			}
+			let opcode = frame[0] & 15;
+			let payload;
+			if(opcode === 0) {
+				const buffers = this._frameBuffer;
+				const payloads = [];
+				opcode = buffers[0][0] & 15;
+				buffers.push(frame);
+				for(let i = 0; i < buffers.length; i++) {
+					const buffer = buffers[i];
+					payloads.push(buffer.slice(2 + bytes));
+				}
+				payload = Buffer.concat(payloads);
+			} else {
+				payload = frame.slice(2 + bytes);
+			}
 			this._processFrame(opcode, payload);
 		}
 	}
