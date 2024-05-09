@@ -15,7 +15,7 @@
   "author": "Timotej Valentin Rojko",
   "license": "MIT",
   "devDependencies": {
-    "@types/node": "^18.0.0",
-    "eslint": "^8.18.0"
+    "@types/node": "^20.12.11",
+    "eslint": "^9.2.0"
   }
 }
