@@ -900,21 +900,38 @@ function isValidRequest(value) {
  */
 function readRange(socket, index, bytes) {
 	// @ts-expect-error _readableState is private / not typed
-	let head = socket._readableState.buffer.head;
+	const readable = socket._readableState;
 	let cursor = 0;
 	let read = 0;
 	let num = 0;
-	do {
-		for(let i = 0; i < head.data.length; i++) {
-			if(++cursor > index) {
-				num *= 256;
-				num += head.data[i];
-				if(++read === bytes) {
-					return num;
+	if("bufferIndex" in readable) { // node 20+
+		let blockIndex = readable.bufferIndex;
+		let block = readable.buffer[blockIndex];
+		do {
+			for(let i = 0; i < block.length; i++) {
+				if(++cursor > index) {
+					num *= 256;
+					num += block[i];
+					if(++read === bytes) {
+						return num;
+					}
 				}
 			}
-		}
-	} while((head = head.next));
+		} while((block = readable.buffer[++blockIndex]));
+	} else {
+		let head = readable.buffer.head;
+		do {
+			for(let i = 0; i < head.data.length; i++) {
+				if(++cursor > index) {
+					num *= 256;
+					num += head.data[i];
+					if(++read === bytes) {
+						return num;
+					}
+				}
+			}
+		} while((head = head.next));
+	}
 	throw new Error("readRange failed?");
 }
 
