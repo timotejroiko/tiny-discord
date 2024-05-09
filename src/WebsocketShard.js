@@ -945,6 +945,11 @@ function readETF(data, useBigint = false) {
 	/** @type {() => any} */ const loop = () => {
 		const type = data[x++];
 		switch(type) {
+			case 70: { // new float
+				const float = data.readDoubleBE(x);
+				x += 8;
+				return float;
+			}
 			case 97: { // small int
 				return data[x++];
 			}
