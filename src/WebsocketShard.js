@@ -79,7 +79,7 @@ class WebsocketShard extends EventEmitter {
 		/** @private @type {Record<string, { resolve: () => void, state: Record<string, any>?, server: Record<string, any>? }>} */ this._voiceChunks = {};
 		/** @private @type {zlib?} */ this._zlib = null;
 		/** @private @type {import("net").Socket?} */ this._socket = null;
-		/** @private @type {Buffer[]} */ this._frameBuffer = [];
+		/** @private @type {{ opcode: number, buffers: Buffer[] }} */ this._wsFragments = { opcode:0, buffers: [] };
 
 		/**
 		 * @type {(
@@ -635,24 +635,22 @@ class WebsocketShard extends EventEmitter {
 			/** @type {Buffer} */ const frame = socket.read(2 + bytes + length);
 			if(!frame) { return; }
 			const fin = frame[0] >> 7;
+			let opcode = frame[0] & 15;
+			let payload = frame.slice(2 + bytes);
 			if(fin === 0) {
-				this._frameBuffer.push(frame);
+				this._wsFragments.buffers.push(payload);
+				if(opcode > 0) {
+					this._wsFragments.opcode = opcode;
+				}
 				return;
 			}
-			let opcode = frame[0] & 15;
-			let payload;
 			if(opcode === 0) {
-				const buffers = this._frameBuffer;
-				const payloads = [];
-				opcode = buffers[0][0] & 15;
-				buffers.push(frame);
-				for(let i = 0; i < buffers.length; i++) {
-					const buffer = buffers[i];
-					payloads.push(buffer.slice(2 + bytes));
-				}
-				payload = Buffer.concat(payloads);
-			} else {
-				payload = frame.slice(2 + bytes);
+				const frag = this._wsFragments;
+				frag.buffers.push(payload);
+				payload = Buffer.concat(frag.buffers);
+				opcode = frag.opcode;
+				frag.buffers = [];
+				frag.opcode = 0;
 			}
 			this._processFrame(opcode, payload);
 		}
