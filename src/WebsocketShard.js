@@ -632,11 +632,12 @@ class WebsocketShard extends EventEmitter {
 				if(socket.readableLength < 2 + bytes) { return; }
 				length = readRange(socket, 2, bytes);
 			}
-			/** @type {Buffer} */ const frame = socket.read(2 + bytes + length);
-			if(!frame) { return; }
+			const frameSize = 2 + bytes + length;
+			/** @type {Buffer | null} */ const frame = socket.read(frameSize);
+			if(!frame || frame.length !== frameSize) { return; }
 			const fin = frame[0] >> 7;
 			let opcode = frame[0] & 15;
-			let payload = frame.slice(2 + bytes);
+			let payload = frame.subarray(2 + bytes);
 			if(fin === 0) {
 				this._wsFragments.buffers.push(payload);
 				if(opcode > 0) {
